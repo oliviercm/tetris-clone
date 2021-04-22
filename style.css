@@ -1,3 +1,8 @@
+@font-face {
+    font-family: "PressStart";
+    src: url("./fonts/PressStart2P-Regular.ttf");
+}
+
 /* BEGIN CSS RESET */
 /* http://meyerweb.com/eric/tools/css/reset/ 
    v2.0 | 20110126
@@ -53,6 +58,10 @@ table {
     font-family: "Press Start 2P";
     src: url("./fonts/PressStart2P-Regular.ttf");
 } */
+
+#test {
+    font-family: "PressStart";
+}
 
 #game-container {
     display: flex;

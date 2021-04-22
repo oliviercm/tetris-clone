@@ -223,10 +223,12 @@ const AUDIO = {
     gameover: new Audio("./sounds/gameover.mp3"),
     level: new Audio("./sounds/level.mp3"),
     theme: new Audio("./sounds/theme.mp3"),
+    pause: new Audio("./sounds/pause.mp3"),
 };
 
 const gameVars = {
     active: false,
+    paused: false,
     gameOver: false,
     globalTick: 0,
     difficulty: 0,
@@ -245,22 +247,55 @@ const playerVars = {
 // Initialize playfield matrix (stores position of cells)
 let playfield = Array(PLAYFIELD_WIDTH).fill().map(() => Array(PLAYFIELD_HEIGHT + PLAYFIELD_HEIGHT_BUFFER).fill(null));
 
-function initialize() {
+async function initialize() {
+    drawLoadingScreen();
+
+    await loadResources();
+
     drawMenu();
     document.addEventListener("keydown", handleKeydown);
     canvas.addEventListener("click", handleClick);
     setInterval(tick, 1000 / 30);
 };
 
+function loadResources() {
+    const promises = [];
+
+    const font = new FontFace("PressStart", "url('./fonts/PressStart2P-Regular.ttf')");
+    promises.push(font.load().then(() => {
+        document.fonts.add(font);
+    }));
+
+    for (const audio in AUDIO) {
+        let cb;
+        promises.push(new Promise((resolve, reject) => {
+            cb = resolve;
+            AUDIO[audio].addEventListener("canplaythrough", cb);
+        }).then(() => {
+            AUDIO[audio].removeEventListener("canplaythrough", cb);
+        }));
+    };
+
+    return Promise.all(promises);
+};
+
+function drawLoadingScreen() {
+    context.clearRect(0, 0, canvas.width, canvas.height);
+    context.textAlign = "center";
+    context.font = "bold 32px sans-serif";
+    context.fillText("Loading...", canvas.width / 2, canvas.height / 2);
+};
+
 function drawMenu() {
     context.clearRect(0, 0, canvas.width, canvas.height);
     context.textAlign = "center";
-    context.font = "bold 24px sans-serif";
-    context.fillText("Click anywhere to begin.", canvas.width / 2, canvas.height / 2);
+    context.font = "bold 16px PressStart";
+    context.fillText("Click here to start.", canvas.width / 2, canvas.height / 2);
 };
 
 function startGame() {
     gameVars.active = true;
+    gameVars.paused = false;
     gameVars.gameOver = false;
 
     initializePlayfield();
@@ -270,8 +305,23 @@ function startGame() {
     playTheme();
 };
 
+function pauseGame() {
+    if (!gameVars.active) {
+        return;
+    };
+    if (gameVars.paused) {
+        gameVars.paused = false;
+        AUDIO.theme.play();
+    } else {
+        gameVars.paused = true;
+        AUDIO.theme.pause();
+    };
+    playSound(AUDIO.pause);
+    drawPauseText();
+};
+
 function tick() {
-    if (gameVars.active) {
+    if (gameVars.active && !gameVars.paused) {
         gameVars.globalTick += 1;
         tetrominoGravity();
         drawPlayField();
@@ -305,10 +355,6 @@ function drawCells() {
 function drawCell(x, y, color) {
     context.fillStyle = TETROMINO_COLORS[color] || "black";
     context.fillRect(CELL_WIDTH * x, CELL_HEIGHT * (PLAYFIELD_HEIGHT - y - 1), CELL_WIDTH, CELL_HEIGHT);
-    // context.fillStyle = "gray";
-    // context.globalAlpha = 0.3;
-    // context.fillRect(CELL_WIDTH * x + 16, CELL_HEIGHT * (PLAYFIELD_HEIGHT - y - 1) + 16, CELL_WIDTH - 32, CELL_HEIGHT - 32);
-    // context.globalAlpha = 1;
 };
 
 function drawControlledTetromino() {
@@ -326,13 +372,32 @@ function drawControlledTetromino() {
 
 function drawGameoverText() {
     if (gameVars.gameOver) {
+        const borderSize = 4;
+        context.fillStyle = "black";
+        context.fillRect(12 - borderSize, canvas.height / 2 - 64 - borderSize, canvas.width - 24 + (borderSize * 2), 128 + (borderSize * 2));
+        context.fillStyle = "white";
+        context.fillRect(12, canvas.height / 2 - 64, canvas.width - 24, 128);
         context.fillStyle = "black";
         context.textAlign = "center";
-        context.font = "bold 40px sans-serif";
+        context.font = "bold 32px PressStart";
         context.fillText("GAME OVER!", canvas.width / 2, canvas.height / 2);
-        context.font = "bold 24px sans-serif";
-        context.fillText("Click anywhere to restart.", canvas.width / 2, canvas.height / 2 + 40);
+        context.font = "bold 16px PressStart";
+        context.fillText("Click here to restart.", canvas.width / 2, canvas.height / 2 + 40);
     };
+};
+
+function drawPauseText() {
+    const borderSize = 4;
+        context.fillStyle = "black";
+        context.fillRect(12 - borderSize, canvas.height / 2 - 64 - borderSize, canvas.width - 24 + (borderSize * 2), 128 + (borderSize * 2));
+        context.fillStyle = "white";
+        context.fillRect(12, canvas.height / 2 - 64, canvas.width - 24, 128);
+        context.fillStyle = "black";
+        context.textAlign = "center";
+        context.font = "bold 32px PressStart";
+        context.fillText("PAUSED", canvas.width / 2, canvas.height / 2);
+        context.font = "bold 16px PressStart";
+        context.fillText("Press ENTER to start.", canvas.width / 2, canvas.height / 2 + 40);
 };
 
 function playTheme() {
@@ -508,7 +573,12 @@ function playSound(sound) {
 };
 
 function handleKeydown(event) {
-    if (!gameVars.active) {
+    if (event.code === "Enter") {
+        event.preventDefault();
+        pauseGame();
+        return;
+    };
+    if (!gameVars.active || gameVars.paused) {
         return;
     };
     switch (event.code) {
@@ -575,13 +645,6 @@ function handleKeydown(event) {
             };
             break;
         };
-        // case "ArrowUp": {
-        //     event.preventDefault();
-        //     if (tryMovement(0, 1)) {
-        //         playerVars.controlledTetrominoPositionY += 1;
-        //     };
-        //     break;
-        // };
         case "Space": {
             event.preventDefault();
             hardDrop();
