@@ -344,7 +344,7 @@ function drawGhost() {
         for (let row = 0; row < tetromino.length; row++) {
             for (let column = 0; column < tetromino[row].length; column++) {
                 if (tetromino[row][column]) {
-                    context.globalAlpha = 0.25;
+                    context.globalAlpha = 0.3;
                     drawCell(playerVars.controlledTetrominoPositionX + column, playerVars.controlledTetrominoPositionY + row + offsetY, playerVars.controlledTetrominoShape);
                     context.globalAlpha = 1;
                 };
@@ -364,7 +364,7 @@ function createControlledTetromino() {
     playerVars.controlledTetrominoPositionY = 19;
     playerVars.controlledTetrominoLockDelay = 30 - gameVars.difficulty;
     playerVars.controlledTetrominoLockDelayExtensions = 0;
-    if (!tryMovement(0, -1)) {
+    if (!tryMovement(0, 0)) {
         gameOver();
     };
 };
