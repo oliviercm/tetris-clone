@@ -1,7 +1,7 @@
 const canvas = document.getElementById("game-canvas");
 const context = canvas.getContext("2d");
 
-// Define core gameplay variables
+// Define core gameplay constants
 const PLAYFIELD_WIDTH = 10;
 const PLAYFIELD_HEIGHT = 20;
 const PLAYFIELD_HEIGHT_BUFFER = 20;
@@ -225,13 +225,12 @@ const AUDIO = {
     theme: new Audio("./sounds/theme.mp3"),
 };
 
-let tetrominoBag = [];
-
 const gameVars = {
     active: false,
     gameOver: false,
     globalTick: 0,
     difficulty: 0,
+    tetrominoBag: [],
 };
 
 const playerVars = {
@@ -313,6 +312,10 @@ function drawCells() {
 function drawCell(x, y, color) {
     context.fillStyle = TETROMINO_COLORS[color] || "black";
     context.fillRect(CELL_WIDTH * x, CELL_HEIGHT * (PLAYFIELD_HEIGHT - y - 1), CELL_WIDTH, CELL_HEIGHT);
+    // context.fillStyle = "gray";
+    // context.globalAlpha = 0.3;
+    // context.fillRect(CELL_WIDTH * x + 16, CELL_HEIGHT * (PLAYFIELD_HEIGHT - y - 1) + 16, CELL_WIDTH - 32, CELL_HEIGHT - 32);
+    // context.globalAlpha = 1;
 };
 
 function drawControlledTetromino() {
@@ -354,14 +357,14 @@ function drawGhost() {
 };
 
 function createControlledTetromino() {
-    const tetromino = tetrominoBag.pop();
-    if (tetrominoBag.length <= 0) {
+    const tetromino = gameVars.tetrominoBag.pop();
+    if (gameVars.tetrominoBag.length <= 0) {
         dealTetrominos();
     };
     playerVars.controlledTetrominoShape = tetromino;
     playerVars.controlledTetrominoRotation = 0;
-    playerVars.controlledTetrominoPositionX = 3;
-    playerVars.controlledTetrominoPositionY = 19;
+    playerVars.controlledTetrominoPositionX = Math.trunc(((PLAYFIELD_WIDTH - 1) / 2) - 1);
+    playerVars.controlledTetrominoPositionY = PLAYFIELD_HEIGHT - 1;
     playerVars.controlledTetrominoLockDelay = 30 - gameVars.difficulty;
     playerVars.controlledTetrominoLockDelayExtensions = 0;
     if (!tryMovement(0, 0)) {
@@ -384,7 +387,7 @@ function tryMovement(offsetX = 0, offsetY = 0, rotation = playerVars.controlledT
                 if (absoluteX < 0 || absoluteX > PLAYFIELD_WIDTH - 1) {
                     return false;
                 };
-                if (absoluteY < 0 || absoluteY > PLAYFIELD_WIDTH + PLAYFIELD_HEIGHT_BUFFER - 1) {
+                if (absoluteY < 0 || absoluteY > PLAYFIELD_HEIGHT + PLAYFIELD_HEIGHT_BUFFER - 1) {
                     return false;
                 };
                 if (playfield[absoluteX][absoluteY]) {
@@ -462,7 +465,7 @@ function scoreLines() {
 };
 
 function dealTetrominos() {
-    tetrominoBag = shuffleArray(["o", "i", "t", "l", "j", "s", "z"]);
+    gameVars.tetrominoBag = shuffleArray(["o", "i", "t", "l", "j", "s", "z"]);
 };
 
 function hardDrop() {
