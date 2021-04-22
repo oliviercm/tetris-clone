@@ -2,306 +2,592 @@ const canvas = document.getElementById("game-canvas");
 const context = canvas.getContext("2d");
 
 // Define core gameplay variables
-const BOARD_WIDTH = 8;
-const BOARD_HEIGHT = 8;
-const CELL_WIDTH = canvas.width / BOARD_WIDTH;
-const CELL_HEIGHT = canvas.height / BOARD_HEIGHT;
-const PIECE_IMAGES = {
-    k: {
-        l: "./svg/Chess_kl.svg",
-        d: "./svg/Chess_kd.svg",
+const PLAYFIELD_WIDTH = 10;
+const PLAYFIELD_HEIGHT = 20;
+const PLAYFIELD_HEIGHT_BUFFER = 20;
+const CELL_WIDTH = canvas.width / PLAYFIELD_WIDTH;
+const CELL_HEIGHT = canvas.height / PLAYFIELD_HEIGHT;
+const TETROMINO_COLORS = {
+    o: "rgba(255, 255, 0, 255)",
+    i: "rgba(0, 255, 255, 255)",
+    t: "rgba(128, 0, 128, 255)",
+    l: "rgba(255, 165, 0, 255)",
+    j: "rgba(0, 0, 139, 255)",
+    s: "rgba(0, 128, 0, 255)",
+    z: "rgba(255, 0, 0, 255)",
+};
+const TETROMINOS = {
+    o: {
+        [0]: [
+            [false, false, false, false],
+            [false, true, true, false],
+            [false, true, true, false],
+        ],
+        [1]: [
+            [false, false, false, false],
+            [false, true, true, false],
+            [false, true, true, false],
+        ],
+        [2]: [
+            [false, false, false, false],
+            [false, true, true, false],
+            [false, true, true, false],
+        ],
+        [3]: [
+            [false, false, false, false],
+            [false, true, true, false],
+            [false, true, true, false],
+        ],
     },
-    q: {
-        l: "./svg/Chess_ql.svg",
-        d: "./svg/Chess_qd.svg",
+    i: {
+        [0]: [
+            [false, false, false, false],
+            [false, false, false, false],
+            [true, true, true, true],
+            [false, false, false, false],
+        ],
+        [1]: [
+            [false, false, true, false],
+            [false, false, true, false],
+            [false, false, true, false],
+            [false, false, true, false],
+        ],
+        [2]: [
+            [false, false, false, false],
+            [true, true, true, true],
+            [false, false, false, false],
+            [false, false, false, false],
+        ],
+        [3]: [
+            [false, true, false, false],
+            [false, true, false, false],
+            [false, true, false, false],
+            [false, true, false, false],
+        ],
     },
-    r: {
-        l: "./svg/Chess_rl.svg",
-        d: "./svg/Chess_rd.svg",
+    t: {
+        [0]: [
+            [false, false, false],
+            [true, true, true],
+            [false, true, false],
+        ],
+        [1]: [
+            [false, true, false],
+            [false, true, true],
+            [false, true, false],
+        ],
+        [2]: [
+            [false, true, false],
+            [true, true, true],
+            [false, false, false],
+        ],
+        [3]: [
+            [false, true, false],
+            [true, true, false],
+            [false, true, false],
+        ],
     },
-    b: {
-        l: "./svg/Chess_bl.svg",
-        d: "./svg/Chess_bd.svg",
+    l: {
+        [0]: [
+            [false, false, false],
+            [true, true, true],
+            [false, false, true],
+        ],
+        [1]: [
+            [false, true, true],
+            [false, true, false],
+            [false, true, false],
+        ],
+        [2]: [
+            [true, false, false],
+            [true, true, true],
+            [false, false, false],
+        ],
+        [3]: [
+            [false, true, false],
+            [false, true, false],
+            [true, true, false],
+        ],
     },
-    n: {
-        l: "./svg/Chess_nl.svg",
-        d: "./svg/Chess_nd.svg",
+    j: {
+        [0]: [
+            [false, false, false],
+            [true, true, true],
+            [true, false, false],
+        ],
+        [1]: [
+            [false, true, false],
+            [false, true, false],
+            [false, true, true],
+        ],
+        [2]: [
+            [false, false, true],
+            [true, true, true],
+            [false, false, false],
+        ],
+        [3]: [
+            [true, true, false],
+            [false, true, false],
+            [false, true, false],
+        ],
     },
-    p: {
-        l: "./svg/Chess_pl.svg",
-        d: "./svg/Chess_pd.svg",
+    s: {
+        [0]: [
+            [false, false, false],
+            [true, true, false],
+            [false, true, true],
+        ],
+        [1]: [
+            [false, false, true],
+            [false, true, true],
+            [false, true, false],
+        ],
+        [2]: [
+            [true, true, false],
+            [false, true, true],
+            [false, false, false],
+        ],
+        [3]: [
+            [false, true, false],
+            [true, true, false],
+            [true, false, false],
+        ],
+    },
+    z: {
+        [0]: [
+            [false, false, false],
+            [false, true, true],
+            [true, true, false],
+        ],
+        [1]: [
+            [false, true, false],
+            [false, true, true],
+            [false, false, true],
+        ],
+        [2]: [
+            [false, true, true],
+            [true, true, false],
+            [false, false, false],
+        ],
+        [3]: [
+            [true, false, false],
+            [true, true, false],
+            [false, true, false],
+        ],
     },
 };
-const DIRECTION_OFFSETS = [-9, -8, -7, -1, 1, 7, 8, 9];
-const DIRECTION_INDEXES = {
-    [-9]: 4,
-    [-8]: 0,
-    [-7]: 5,
-    [-1]: 2,
-    [1]: 3,
-    [7]: 6,
-    [8]: 1,
-    [9]: 7,
+const KICK_OFFSETS = {
+    normal: {
+        [0]: {
+            [-1]: [[0, 0], [1, 0], [1, 1], [0, -2], [1, -2]],
+            [1]: [[0, 0], [-1, 0], [-1, 1], [0, -2], [-1, -2]],
+        },
+        [1]: {
+            [-1]: [[0, 0], [1, 0], [1, -1], [0, 2], [1, 2]],
+            [1]: [[0, 0], [1, 0], [1, -1], [0, 2], [1, 2]],
+        },
+        [2]: {
+            [-1]: [[0, 0], [-1, 0], [-1, 1], [0, -2], [-1, -2]],
+            [1]: [[0, 0], [1, 0], [1, 1], [0, -2], [1, -2]],
+        },
+        [3]: {
+            [-1]: [[0, 0], [-1, 0], [-1, -1], [0, 2], [-1, 2]],
+            [1]: [[0, 0], [-1, 0], [-1, -1], [0, 2], [-1, 2]],
+        },
+    },
+    modified: {
+        [0]: {
+            [-1]: [[0, 0], [-1, 0], [2, 0], [-1, 2], [2, -1]],
+            [1]: [[0, 0], [-2, 0], [1, 0], [-2, -1], [1, 2]],
+        },
+        [1]: {
+            [-1]: [[0, 0], [2, 0], [-1, 0], [2, 1], [-1, -2]],
+            [1]: [[0, 0], [-1, 0], [2, 0], [-1, 2], [2, -1]],
+        },
+        [2]: {
+            [-1]: [[0, 0], [1, 0], [-2, 0], [1, -2], [-2, 1]],
+            [1]: [[0, 0], [2, 0], [-1, 0], [2, 1], [-1, -2]],
+        },
+        [3]: {
+            [-1]: [[0, 0], [-2, 0], [1, 0], [-2, -1], [1, 2]],
+            [1]: [[0, 0], [1, 0], [-2, 0], [1, -2], [-2, 1]],
+        },
+    },
 };
-let NUM_CELLS_TO_EDGE = [];
+const AUDIO = {
+    rotate: new Audio("./sounds/rotate.mp3"),
+    land: new Audio("./sounds/land.mp3"),
+    line: new Audio("./sounds/line.mp3"),
+    tetris: new Audio("./sounds/tetris.mp3"),
+    move: new Audio("./sounds/move.mp3"),
+    gameover: new Audio("./sounds/gameover.mp3"),
+    level: new Audio("./sounds/level.mp3"),
+    theme: new Audio("./sounds/theme.mp3"),
+};
 
-const board = [
-    "rd", "nd", "bd", "qd", "kd", "bd", "nd", "rd",
-    "pd", "pd", "pd", "pd", "pd", "pd", "pd", "pd",
-    "", "", "", "", "", "", "", "",
-    "", "", "", "", "", "", "", "",
-    "", "", "", "", "", "", "", "",
-    "", "", "", "", "", "", "", "",
-    "pl", "pl", "pl", "pl", "pl", "pl", "pl", "pl",
-    "rl", "nl", "bl", "ql", "kl", "bl", "nl", "rl",
-];
+let tetrominoBag = [];
+
+const gameVars = {
+    active: false,
+    gameOver: false,
+    globalTick: 0,
+    difficulty: 20,
+};
 
 const playerVars = {
-    selectedCell: null,
-    selectedPiece: null,
+    controlledTetrominoShape: null,
+    controlledTetrominoPositionX: null,
+    controlledTetrominoPositionY: null,
+    controlledTetrominoRotation: null,
+    controlledTetrominoLockDelay: null,
+    controlledTetrominoLockDelayExtensions: null,
 };
 
-async function initialize() {
-    await Promise.all(initializePieceImages());
-    computeNumberOfCellsToEdges();
-    drawBoard();
+// Initialize playfield matrix (stores position of cells)
+let playfield = Array(PLAYFIELD_WIDTH).fill().map(() => Array(PLAYFIELD_HEIGHT + PLAYFIELD_HEIGHT_BUFFER).fill(null));
+
+function initialize() {
+    drawMenu();
+    document.addEventListener("keydown", handleKeydown);
+    canvas.addEventListener("click", handleClick);
+    setInterval(tick, 1000 / 30);
 };
 
-function initializePieceImages() {
-    const promises = [];
-    for (const piece in PIECE_IMAGES) {
-        for (const color in PIECE_IMAGES[piece]) {
-            promises.push(new Promise((resolve, reject) => {
-                const img = new Image(CELL_WIDTH, CELL_HEIGHT);
-                img.onload = function() {
-                    resolve();
-                };
-                img.src = PIECE_IMAGES[piece][color];
-
-                PIECE_IMAGES[piece][color] = img;
-            }));
-        };
-    };
-    return promises;
+function drawMenu() {
+    context.clearRect(0, 0, canvas.width, canvas.height);
+    context.textAlign = "center";
+    context.font = "bold 24px sans-serif";
+    context.fillText("Click anywhere to begin.", canvas.width / 2, canvas.height / 2);
 };
 
-function computeNumberOfCellsToEdges() {
-    for (let column = 0; column < 8; column++) {
-        for (let row = 0; row < 8; row++) {
-            const north = row;
-            const south = 7 - row;
-            const west = column;
-            const east = 7 - column;
+function startGame() {
+    gameVars.active = true;
+    gameVars.gameOver = false;
 
-            NUM_CELLS_TO_EDGE[row * 8 + column] = [
-                north,
-                south,
-                west,
-                east,
-                Math.min(north, west),
-                Math.min(north, east),
-                Math.min(south, west),
-                Math.min(south, east),
-            ];
-        };
+    initializePlayfield();
+    drawPlayField();
+    dealTetrominos();
+    createControlledTetromino();
+    playTheme();
+};
+
+function tick() {
+    if (gameVars.active) {
+        gameVars.globalTick += 1;
+        tetrominoGravity();
+        drawPlayField();
     };
 };
 
-function drawBoard() {
+function initializePlayfield() {
+    playfield = Array(PLAYFIELD_WIDTH).fill().map(() => Array(PLAYFIELD_HEIGHT + PLAYFIELD_HEIGHT_BUFFER).fill(null));
+};
+
+function drawPlayField() {
     context.clearRect(0, 0, canvas.width, canvas.height);
     drawCells();
-    drawSelectedCell();
-    drawValidMoves();
-    drawPieces();
+    drawGhost();
+    drawControlledTetromino();
+    if (gameVars.gameOver) {
+        context.fillStyle = "black";
+        context.textAlign = "center";
+        context.font = "bold 40px sans-serif";
+        context.fillText("GAME OVER!", canvas.width / 2, canvas.height / 2);
+        context.font = "bold 24px sans-serif";
+        context.fillText("Click anywhere to restart.", canvas.width / 2, canvas.height / 2 + 40);
+    };
 };
 
 function drawCells() {
-    for (let x = 0; x < BOARD_WIDTH; x++) {
-        for (let y = 0; y < BOARD_HEIGHT; y++) {
-            drawCell(x, y);
+    for (let x = 0; x < playfield.length; x++) {
+        const column = playfield[x];
+        for (let y = 0; y < column.length; y++) {
+            const cell = column[y];
+            if (cell) {
+                drawCell(x, y, cell);
+            };
         };
     };
 };
 
-function drawCell(x, y) {
-    context.fillStyle = (x + y) % 2 ? "rgba(181,136,99,255)" : "rgba(240,217,181,255)"; // dark, light
-    context.fillRect(CELL_WIDTH * x, CELL_HEIGHT * y, CELL_WIDTH, CELL_HEIGHT);
+function drawCell(x, y, color) {
+    context.fillStyle = TETROMINO_COLORS[color] || "black";
+    context.fillRect(CELL_WIDTH * x, CELL_HEIGHT * (PLAYFIELD_HEIGHT - y - 1), CELL_WIDTH, CELL_HEIGHT);
 };
 
-function drawValidCell(cell) {
-    const x = cell % 8;
-    const y = Math.trunc(cell / 8);
-    context.fillStyle = (x + y) % 2 ? "rgba(255,255,255,255)" : "rgba(255,255,255,255)"; // dark, light
-    context.fillRect(CELL_WIDTH * x, CELL_HEIGHT * y, CELL_WIDTH, CELL_HEIGHT);
-};
-
-function drawSelectedCell() {
-    if (playerVars.selectedCell !== null) {
-        const x = playerVars.selectedCell % 8;
-        const y = Math.trunc(playerVars.selectedCell / 8);
-        context.fillStyle = (x + y) % 2 ? "rgba(100,111,64,255)" : "rgba(130,151,105,255)"; // dark, light
-        context.fillRect(CELL_WIDTH * x, CELL_HEIGHT * y, CELL_WIDTH, CELL_HEIGHT);
-    };
-};
-
-function drawPieces() {
-    for (let i = 0; i < board.length; i++) {
-        if (board[i]) {
-            drawPiece(board[i][0], board[i][1], i % 8, Math.trunc(i / 8));
-        };
-    };
-};
-
-function drawPiece(piece, color, x, y) {
-    context.drawImage(PIECE_IMAGES[piece][color], x * CELL_WIDTH, y * CELL_HEIGHT);
-};
-
-function getCursorPosition(canvas, event) {
-    const rect = canvas.getBoundingClientRect();
-    const x = event.clientX - rect.left;
-    const y = event.clientY - rect.top;
-
-    return {
-        x: x,
-        y: y,
-    };
-};
-
-function getCursorCellPosition(canvas, event) {
-    const pos = getCursorPosition(canvas, event);
-
-    return {
-        x: Math.trunc(pos.x / CELL_WIDTH),
-        y: Math.trunc(pos.y / CELL_HEIGHT),
-    };
-};
-
-function getCursorCellIndex(canvas, event) {
-    const pos = getCursorCellPosition(canvas, event);
-
-    return pos.y * 8 + pos.x;
-};
-
-function getValidMoves(index) {
-    const validMoves = [];
-
-    const piece = board[index][0];
-    const color = board[index][1];
-    switch (piece) {
-        case "k": {
-            const possibleOffsets = [-9, -8, -7, -1, 1, 7, 8, 9];
-            for (const offset of possibleOffsets) {
-                const offsetIndex = index + offset;
-                if (0 <= offsetIndex && offsetIndex < 64 && board[offsetIndex][1] !== color) {
-                    validMoves.push(offsetIndex);
+function drawControlledTetromino() {
+    if (playerVars.controlledTetrominoShape) {
+        const tetromino = TETROMINOS[playerVars.controlledTetrominoShape][playerVars.controlledTetrominoRotation];
+        for (let row = 0; row < tetromino.length; row++) {
+            for (let column = 0; column < tetromino[row].length; column++) {
+                if (tetromino[row][column]) {
+                    drawCell(playerVars.controlledTetrominoPositionX + column, playerVars.controlledTetrominoPositionY + row, playerVars.controlledTetrominoShape);
                 };
             };
-            break;
-        };
-        case "q": {
-            const dirs = [-9, -8, -7, -1, 1, 7, 8, 9];
-            for (const dir of dirs) {
-                let currentIndex = index + dir;
-                let numCellsToEdge = NUM_CELLS_TO_EDGE[index][DIRECTION_INDEXES[dir]];
-                while (numCellsToEdge > 0) {
-                    if (board[currentIndex]) {
-                        if (board[currentIndex][1] === color) {
-                            break;
-                        } else {
-                            validMoves.push(currentIndex);
-                            break;
-                        };
-                    } else {
-                        validMoves.push(currentIndex);
-                    };
-                    currentIndex += dir;
-                    numCellsToEdge -= 1;
-                };
-            };
-            break;
-        };
-        case "r": {
-            const dirs = [-8, -1, 1, 8];
-            for (const dir of dirs) {
-                let currentIndex = index + dir;
-                let numCellsToEdge = NUM_CELLS_TO_EDGE[index][DIRECTION_INDEXES[dir]];
-                while (numCellsToEdge > 0) {
-                    if (board[currentIndex]) {
-                        if (board[currentIndex][1] === color) {
-                            break;
-                        } else {
-                            validMoves.push(currentIndex);
-                            break;
-                        };
-                    } else {
-                        validMoves.push(currentIndex);
-                    };
-                    currentIndex += dir;
-                    numCellsToEdge -= 1;
-                };
-            };
-            break;
-        };
-        case "b": {
-            const dirs = [-9, -7, 7, 9];
-            for (const dir of dirs) {
-                let currentIndex = index + dir;
-                let numCellsToEdge = NUM_CELLS_TO_EDGE[index][DIRECTION_INDEXES[dir]];
-                while (numCellsToEdge > 0) {
-                    if (board[currentIndex]) {
-                        if (board[currentIndex][1] === color) {
-                            break;
-                        } else {
-                            validMoves.push(currentIndex);
-                            break;
-                        };
-                    } else {
-                        validMoves.push(currentIndex);
-                    };
-                    currentIndex += dir;
-                    numCellsToEdge -= 1;
-                };
-            };
-            break;
-        };
-        case "n": {
-            const possibleOffsets = [-17, -15, -10, -6, 6, 10, 15, 17];
-            for (const offset of possibleOffsets) {
-                const offsetIndex = index + offset;
-                if (0 <= offsetIndex && offsetIndex < 64 && board[offsetIndex][1] !== color) {
-                    validMoves.push(offsetIndex);
-                };
-            };
-            break;
-        };
-    };
-    return validMoves;
-};
-
-function drawValidMoves() {
-    if (playerVars.selectedCell !== null) {
-        const validMoves = getValidMoves(playerVars.selectedCell);
-        for (const cell of validMoves) {
-            drawValidCell(cell);
         };
     };
 };
 
-canvas.addEventListener("mousedown", function(event) {
-    const clickedCell = getCursorCellIndex(canvas, event);
-    console.log(clickedCell);
-    const clickedPiece = board[clickedCell];
-    if (playerVars.selectedPiece) {
-        board[playerVars.selectedCell] = "";
-        board[clickedCell] = playerVars.selectedPiece;
-        playerVars.selectedPiece = null;
-        playerVars.selectedCell = null;
+function playTheme() {
+    AUDIO.theme.currentTime = 0;
+    AUDIO.theme.loop = true;
+    AUDIO.theme.play();
+};
+
+function drawGhost() {
+    if (playerVars.controlledTetrominoShape) {
+        const tetromino = TETROMINOS[playerVars.controlledTetrominoShape][playerVars.controlledTetrominoRotation];
+        let offsetY = 0;
+        while (tryMovement(0, offsetY - 1)) {
+            offsetY -= 1;
+        };
+        for (let row = 0; row < tetromino.length; row++) {
+            for (let column = 0; column < tetromino[row].length; column++) {
+                if (tetromino[row][column]) {
+                    context.globalAlpha = 0.25;
+                    drawCell(playerVars.controlledTetrominoPositionX + column, playerVars.controlledTetrominoPositionY + row + offsetY, playerVars.controlledTetrominoShape);
+                    context.globalAlpha = 1;
+                };
+            };
+        };
+    };
+};
+
+function createControlledTetromino() {
+    const tetromino = tetrominoBag.pop();
+    if (tetrominoBag.length <= 0) {
+        dealTetrominos();
+    };
+    playerVars.controlledTetrominoShape = tetromino;
+    playerVars.controlledTetrominoRotation = 0;
+    playerVars.controlledTetrominoPositionX = 3;
+    playerVars.controlledTetrominoPositionY = 19;
+    playerVars.controlledTetrominoLockDelay = 30 - gameVars.difficulty;
+    playerVars.controlledTetrominoLockDelayExtensions = 0;
+    if (!tryMovement(0, -1)) {
+        gameOver();
+    };
+};
+
+function extendControlledTetrominoLockDelay() {
+    playerVars.controlledTetrominoLockDelay += Math.max(0, 20 - gameVars.difficulty - (playerVars.controlledTetrominoLockDelayExtensions * 2));
+    playerVars.controlledTetrominoLockDelayExtensions += 1;
+};
+
+function tryMovement(offsetX = 0, offsetY = 0, rotation = playerVars.controlledTetrominoRotation) {
+    const tetromino = TETROMINOS[playerVars.controlledTetrominoShape][rotation];
+    for (let row = 0; row < tetromino.length; row++) {
+        for (let column = 0; column < tetromino[row].length; column++) {
+            if (tetromino[row][column]) {
+                const absoluteX = playerVars.controlledTetrominoPositionX + column + offsetX;
+                const absoluteY = playerVars.controlledTetrominoPositionY + row + offsetY;
+                if (absoluteX < 0 || absoluteX > PLAYFIELD_WIDTH - 1) {
+                    return false;
+                };
+                if (absoluteY < 0 || absoluteY > PLAYFIELD_WIDTH + PLAYFIELD_HEIGHT_BUFFER - 1) {
+                    return false;
+                };
+                if (playfield[absoluteX][absoluteY]) {
+                    return false;
+                };
+            };
+        };
+    };
+    return true;
+};
+
+function tetrominoGravity() {
+    if (tryMovement(0, -1)) {
+        if (gameVars.globalTick % Math.max(20 - gameVars.difficulty, 1) === 0) {
+            playerVars.controlledTetrominoPositionY -= 1;
+        };
     } else {
-        playerVars.selectedCell = clickedCell;
-        playerVars.selectedPiece = clickedPiece;
+        playerVars.controlledTetrominoLockDelay -= 1;
+        if (playerVars.controlledTetrominoLockDelay <= 0) {
+            lockControlledPiece();
+        };
     };
-    
-    drawBoard();
-});
+};
+
+function gameOver() {
+    gameVars.active = false;
+    gameVars.gameOver = true;
+    drawPlayField();
+    setTimeout(() => {
+        playSound(AUDIO.gameover);
+    }, 500);
+    AUDIO.theme.pause();
+};
+
+function lockControlledPiece() {
+    const tetromino = TETROMINOS[playerVars.controlledTetrominoShape][playerVars.controlledTetrominoRotation];
+    for (let row = 0; row < tetromino.length; row++) {
+        for (let column = 0; column < tetromino[row].length; column++) {
+            if (tetromino[row][column]) {
+                const absoluteX = playerVars.controlledTetrominoPositionX + column;
+                const absoluteY = playerVars.controlledTetrominoPositionY + row;
+                playfield[absoluteX][absoluteY] = playerVars.controlledTetrominoShape;
+            };
+        };
+    };
+    scoreLines();
+    createControlledTetromino();
+    playSound(AUDIO.land);
+};
+
+function scoreLines() {
+    let score = 0;
+    for (let row = 0; row < (PLAYFIELD_HEIGHT + PLAYFIELD_HEIGHT_BUFFER); row++) {
+        let rowIsFilled = playfield.every(column => {
+            return column[row];
+        });
+        while (rowIsFilled) {
+            score++;
+            for (let column = 0; column < playfield.length; column++) {
+                playfield[column] = playfield[column].slice(0, row).concat(playfield[column].slice(row + 1, playfield[column].length), [null]);  
+            };
+            rowIsFilled = playfield.every(column => {
+                return column[row];
+            });
+        };
+    };
+    if (score > 0) {
+        if (score >= 4) {
+            playSound(AUDIO.tetris);
+        } else {
+            playSound(AUDIO.line);
+        };
+        
+    };
+};
+
+function dealTetrominos() {
+    tetrominoBag = shuffleArray(["o", "i", "t", "l", "j", "s", "z"]);
+};
+
+function hardDrop() {
+    while (tryMovement(0, -1)) {
+        playerVars.controlledTetrominoPositionY -= 1;
+    };
+    lockControlledPiece();
+};
+
+function shuffleArray(array) {
+    let currentIndex = array.length;
+    let temp;
+    let randomIndex;
+
+    while (0 !== currentIndex) {
+        randomIndex = Math.floor(Math.random() * currentIndex);
+        currentIndex -= 1;
+        temp = array[currentIndex];
+        array[currentIndex] = array[randomIndex];
+        array[randomIndex] = temp;
+    };
+
+    return array;
+};
+
+function mod(n, mod) {
+    return ((n % mod) + mod) % mod;
+};
+
+function playSound(sound) {
+    if (sound.paused) {
+        sound.play();
+    } else {
+        sound.currentTime = 0;
+    };
+};
+
+function handleKeydown(event) {
+    if (!gameVars.active) {
+        return;
+    };
+    switch (event.code) {
+        case "KeyZ": {
+            event.preventDefault();
+            const desiredRotation = mod(playerVars.controlledTetrominoRotation - 1, 4);
+            const kickOffsetRules = playerVars.controlledTetrominoShape !== "i" ? "normal" : "modified";
+            const kickOffsets = KICK_OFFSETS[kickOffsetRules][playerVars.controlledTetrominoRotation][-1];
+            const kickingFromGround = !tryMovement(0, -1);
+            for (const kickOffset of kickOffsets) {
+                if (tryMovement(kickOffset[0], kickOffset[1], desiredRotation)) {
+                    playerVars.controlledTetrominoPositionX += kickOffset[0];
+                    playerVars.controlledTetrominoPositionY += kickOffset[1];
+                    playerVars.controlledTetrominoRotation = desiredRotation;
+                    if (kickingFromGround) {
+                        extendControlledTetrominoLockDelay();
+                    };
+                    playSound(AUDIO.rotate);
+                    break;
+                };
+            };
+            break;
+        };
+        case "KeyX": {
+            event.preventDefault();
+            const desiredRotation = mod(playerVars.controlledTetrominoRotation + 1, 4);
+            const kickOffsetRules = playerVars.controlledTetrominoShape !== "i" ? "normal" : "modified";
+            const kickOffsets = KICK_OFFSETS[kickOffsetRules][playerVars.controlledTetrominoRotation][1];
+            const kickingFromGround = !tryMovement(0, -1);
+            for (const kickOffset of kickOffsets) {
+                if (tryMovement(kickOffset[0], kickOffset[1], desiredRotation)) {
+                    playerVars.controlledTetrominoPositionX += kickOffset[0];
+                    playerVars.controlledTetrominoPositionY += kickOffset[1];
+                    playerVars.controlledTetrominoRotation = desiredRotation;
+                    if (kickingFromGround) {
+                        extendControlledTetrominoLockDelay();
+                    };
+                    playSound(AUDIO.rotate);
+                    break;
+                };
+            };
+            break;
+        };
+        case "ArrowLeft": {
+            event.preventDefault();
+            if (tryMovement(-1, 0)) {
+                playerVars.controlledTetrominoPositionX -= 1;
+                playSound(AUDIO.move);
+            };
+            break;
+        };
+        case "ArrowRight": {
+            event.preventDefault();
+            if (tryMovement(1, 0)) {
+                playerVars.controlledTetrominoPositionX += 1;
+                playSound(AUDIO.move);
+            };
+            break;
+        };
+        case "ArrowDown": {
+            event.preventDefault();
+            if (tryMovement(0, -1)) {
+                playerVars.controlledTetrominoPositionY -= 1;
+            };
+            break;
+        };
+        // case "ArrowUp": {
+        //     event.preventDefault();
+        //     if (tryMovement(0, 1)) {
+        //         playerVars.controlledTetrominoPositionY += 1;
+        //     };
+        //     break;
+        // };
+        case "Space": {
+            event.preventDefault();
+            hardDrop();
+            break;
+        };
+    };
+    drawPlayField();
+};
+
+function handleClick() {
+    if (!gameVars.active) {
+        startGame();
+    };
+};
 
 initialize();
