@@ -287,14 +287,7 @@ function drawPlayField() {
     drawCells();
     drawGhost();
     drawControlledTetromino();
-    if (gameVars.gameOver) {
-        context.fillStyle = "black";
-        context.textAlign = "center";
-        context.font = "bold 40px sans-serif";
-        context.fillText("GAME OVER!", canvas.width / 2, canvas.height / 2);
-        context.font = "bold 24px sans-serif";
-        context.fillText("Click anywhere to restart.", canvas.width / 2, canvas.height / 2 + 40);
-    };
+    drawGameoverText();
 };
 
 function drawCells() {
@@ -328,6 +321,17 @@ function drawControlledTetromino() {
                 };
             };
         };
+    };
+};
+
+function drawGameoverText() {
+    if (gameVars.gameOver) {
+        context.fillStyle = "black";
+        context.textAlign = "center";
+        context.font = "bold 40px sans-serif";
+        context.fillText("GAME OVER!", canvas.width / 2, canvas.height / 2);
+        context.font = "bold 24px sans-serif";
+        context.fillText("Click anywhere to restart.", canvas.width / 2, canvas.height / 2 + 40);
     };
 };
 
