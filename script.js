@@ -231,7 +231,7 @@ const gameVars = {
     active: false,
     gameOver: false,
     globalTick: 0,
-    difficulty: 20,
+    difficulty: 0,
 };
 
 const playerVars = {
