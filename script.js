@@ -32,16 +32,28 @@ const PIECE_IMAGES = {
         d: "./svg/Chess_pd.svg",
     },
 };
+const DIRECTION_OFFSETS = [-9, -8, -7, -1, 1, 7, 8, 9];
+const DIRECTION_INDEXES = {
+    [-9]: 4,
+    [-8]: 0,
+    [-7]: 5,
+    [-1]: 2,
+    [1]: 3,
+    [7]: 6,
+    [8]: 1,
+    [9]: 7,
+};
+let NUM_CELLS_TO_EDGE = [];
 
 const board = [
-    ["rd", "nd", "bd", "qd", "kd", "bd", "nd", "rd"],
-    ["pd", "pd", "pd", "pd", "pd", "pd", "pd", "pd"],
-    ["", "", "", "", "", "", "", ""],
-    ["", "", "", "", "", "", "", ""],
-    ["", "", "", "", "", "", "", ""],
-    ["", "", "", "", "", "", "", ""],
-    ["pl", "pl", "pl", "pl", "pl", "pl", "pl", "pl"],
-    ["rl", "nl", "bl", "ql", "kl", "bl", "nl", "rl"],
+    "rd", "nd", "bd", "qd", "kd", "bd", "nd", "rd",
+    "pd", "pd", "pd", "pd", "pd", "pd", "pd", "pd",
+    "", "", "", "", "", "", "", "",
+    "", "", "", "", "", "", "", "",
+    "", "", "", "", "", "", "", "",
+    "", "", "", "", "", "", "", "",
+    "pl", "pl", "pl", "pl", "pl", "pl", "pl", "pl",
+    "rl", "nl", "bl", "ql", "kl", "bl", "nl", "rl",
 ];
 
 const playerVars = {
@@ -51,6 +63,7 @@ const playerVars = {
 
 async function initialize() {
     await Promise.all(initializePieceImages());
+    computeNumberOfCellsToEdges();
     drawBoard();
 };
 
@@ -70,6 +83,28 @@ function initializePieceImages() {
         };
     };
     return promises;
+};
+
+function computeNumberOfCellsToEdges() {
+    for (let column = 0; column < 8; column++) {
+        for (let row = 0; row < 8; row++) {
+            const north = row;
+            const south = 7 - row;
+            const west = column;
+            const east = 7 - column;
+
+            NUM_CELLS_TO_EDGE[row * 8 + column] = [
+                north,
+                south,
+                west,
+                east,
+                Math.min(north, west),
+                Math.min(north, east),
+                Math.min(south, west),
+                Math.min(south, east),
+            ];
+        };
+    };
 };
 
 function drawBoard() {
@@ -93,27 +128,26 @@ function drawCell(x, y) {
     context.fillRect(CELL_WIDTH * x, CELL_HEIGHT * y, CELL_WIDTH, CELL_HEIGHT);
 };
 
-function drawValidCell(x, y) {
+function drawValidCell(cell) {
+    const x = cell % 8;
+    const y = Math.trunc(cell / 8);
     context.fillStyle = (x + y) % 2 ? "rgba(255,255,255,255)" : "rgba(255,255,255,255)"; // dark, light
     context.fillRect(CELL_WIDTH * x, CELL_HEIGHT * y, CELL_WIDTH, CELL_HEIGHT);
 };
 
 function drawSelectedCell() {
-    if (playerVars.selectedCell) {
-        const x = playerVars.selectedCell.x;
-        const y = playerVars.selectedCell.y;
+    if (playerVars.selectedCell !== null) {
+        const x = playerVars.selectedCell % 8;
+        const y = Math.trunc(playerVars.selectedCell / 8);
         context.fillStyle = (x + y) % 2 ? "rgba(100,111,64,255)" : "rgba(130,151,105,255)"; // dark, light
         context.fillRect(CELL_WIDTH * x, CELL_HEIGHT * y, CELL_WIDTH, CELL_HEIGHT);
     };
 };
 
 function drawPieces() {
-    for (let row = 0; row < board.length; row++) {
-        for (let column = 0; column < board[row].length; column++) {
-            const cell = board[row][column];
-            if (cell.length) {
-                drawPiece(cell[0], cell[1], column, row);
-            };
+    for (let i = 0; i < board.length; i++) {
+        if (board[i]) {
+            drawPiece(board[i][0], board[i][1], i % 8, Math.trunc(i / 8));
         };
     };
 };
@@ -133,7 +167,7 @@ function getCursorPosition(canvas, event) {
     };
 };
 
-function getCellPosition(canvas, event) {
+function getCursorCellPosition(canvas, event) {
     const pos = getCursorPosition(canvas, event);
 
     return {
@@ -142,67 +176,124 @@ function getCellPosition(canvas, event) {
     };
 };
 
-function getValidPieceMoves(piece, color, x, y) {
-    const validMoves = [
-        [false, false, false, false, false, false, false, false],
-        [false, false, false, false, false, false, false, false],
-        [false, false, false, false, false, false, false, false],
-        [false, false, false, false, false, false, false, false],
-        [false, false, false, false, false, false, false, false],
-        [false, false, false, false, false, false, false, false],
-        [false, false, false, false, false, false, false, false],
-        [false, false, false, false, false, false, false, false],
-    ];
+function getCursorCellIndex(canvas, event) {
+    const pos = getCursorCellPosition(canvas, event);
+
+    return pos.y * 8 + pos.x;
+};
+
+function getValidMoves(index) {
+    const validMoves = [];
+
+    const piece = board[index][0];
+    const color = board[index][1];
     switch (piece) {
         case "k": {
-            for (let row = Math.max(0, x - 1); row <= Math.min(x + 1, BOARD_HEIGHT - 1); row++) {
-                for (let col = Math.max(0, y - 1); col <= Math.min(y + 1, BOARD_WIDTH - 1); col++) {
-                    console.log(board[row][col], board[row][col][1], color);
-                    if (board[row][col][1] !== color) {
-                        validMoves[row][col] = true;
-                    };
+            const possibleOffsets = [-9, -8, -7, -1, 1, 7, 8, 9];
+            for (const offset of possibleOffsets) {
+                const offsetIndex = index + offset;
+                if (0 <= offsetIndex && offsetIndex < 64 && board[offsetIndex][1] !== color) {
+                    validMoves.push(offsetIndex);
                 };
             };
             break;
         };
         case "q": {
-            for (let row = 0; row < BOARD_HEIGHT; row++) {
-
+            const dirs = [-9, -8, -7, -1, 1, 7, 8, 9];
+            for (const dir of dirs) {
+                let currentIndex = index + dir;
+                let numCellsToEdge = NUM_CELLS_TO_EDGE[index][DIRECTION_INDEXES[dir]];
+                while (numCellsToEdge > 0) {
+                    if (board[currentIndex]) {
+                        if (board[currentIndex][1] === color) {
+                            break;
+                        } else {
+                            validMoves.push(currentIndex);
+                            break;
+                        };
+                    } else {
+                        validMoves.push(currentIndex);
+                    };
+                    currentIndex += dir;
+                    numCellsToEdge -= 1;
+                };
             };
-            for (let row = Math.max(0, x - 1); row <= Math.min(x + 1, BOARD_HEIGHT - 1); row++) {
-                for (let col = Math.max(0, y - 1); col <= Math.min(y + 1, BOARD_WIDTH - 1); col++) {
-                    validMoves[col][row] = true;
+            break;
+        };
+        case "r": {
+            const dirs = [-8, -1, 1, 8];
+            for (const dir of dirs) {
+                let currentIndex = index + dir;
+                let numCellsToEdge = NUM_CELLS_TO_EDGE[index][DIRECTION_INDEXES[dir]];
+                while (numCellsToEdge > 0) {
+                    if (board[currentIndex]) {
+                        if (board[currentIndex][1] === color) {
+                            break;
+                        } else {
+                            validMoves.push(currentIndex);
+                            break;
+                        };
+                    } else {
+                        validMoves.push(currentIndex);
+                    };
+                    currentIndex += dir;
+                    numCellsToEdge -= 1;
+                };
+            };
+            break;
+        };
+        case "b": {
+            const dirs = [-9, -7, 7, 9];
+            for (const dir of dirs) {
+                let currentIndex = index + dir;
+                let numCellsToEdge = NUM_CELLS_TO_EDGE[index][DIRECTION_INDEXES[dir]];
+                while (numCellsToEdge > 0) {
+                    if (board[currentIndex]) {
+                        if (board[currentIndex][1] === color) {
+                            break;
+                        } else {
+                            validMoves.push(currentIndex);
+                            break;
+                        };
+                    } else {
+                        validMoves.push(currentIndex);
+                    };
+                    currentIndex += dir;
+                    numCellsToEdge -= 1;
+                };
+            };
+            break;
+        };
+        case "n": {
+            const possibleOffsets = [-17, -15, -10, -6, 6, 10, 15, 17];
+            for (const offset of possibleOffsets) {
+                const offsetIndex = index + offset;
+                if (0 <= offsetIndex && offsetIndex < 64 && board[offsetIndex][1] !== color) {
+                    validMoves.push(offsetIndex);
                 };
             };
             break;
         };
     };
-    validMoves[y][x] = false;
-    console.log(validMoves)
     return validMoves;
 };
 
 function drawValidMoves() {
-    if (playerVars.selectedPiece) {
-        const pieceType = playerVars.selectedPiece[0];
-        const pieceColor = playerVars.selectedPiece[1];
-        const validMoves = getValidPieceMoves(pieceType, pieceColor, playerVars.selectedCell.y, playerVars.selectedCell.x);
-        for (let row = 0; row < validMoves.length; row++) {
-            for (let col = 0; col < validMoves[row].length; col++) {
-                if (validMoves[row][col]) {
-                    drawValidCell(col, row);
-                };
-            };
+    if (playerVars.selectedCell !== null) {
+        const validMoves = getValidMoves(playerVars.selectedCell);
+        for (const cell of validMoves) {
+            drawValidCell(cell);
         };
     };
 };
 
 canvas.addEventListener("mousedown", function(event) {
-    const clickedCell = getCellPosition(canvas, event);
-    const clickedPiece = board[clickedCell.y][clickedCell.x];
+    const clickedCell = getCursorCellIndex(canvas, event);
+    console.log(clickedCell);
+    const clickedPiece = board[clickedCell];
     if (playerVars.selectedPiece) {
-        board[playerVars.selectedCell.y][playerVars.selectedCell.x] = "";
-        board[clickedCell.y][clickedCell.x] = playerVars.selectedPiece;
+        board[playerVars.selectedCell] = "";
+        board[clickedCell] = playerVars.selectedPiece;
         playerVars.selectedPiece = null;
         playerVars.selectedCell = null;
     } else {
