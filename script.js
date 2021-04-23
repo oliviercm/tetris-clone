@@ -386,7 +386,7 @@ function startGame() {
     gameVars.difficulty = 1;
     gameVars.score = 0;
     gameVars.clearedLines = 0;
-    gameVars.tetrominoBag = 0;
+    gameVars.tetrominoBag = [];
 
     initializePlayfield();
     drawPlayField();
