@@ -21,6 +21,9 @@
 const canvas = document.getElementById("game-canvas");
 const context = canvas.getContext("2d");
 
+const nextCanvas = document.getElementById("next-canvas");
+const nextContext = nextCanvas.getContext("2d");
+
 // Define core gameplay constants
 const PLAYFIELD_WIDTH = 10;
 const PLAYFIELD_HEIGHT = 20;
@@ -367,6 +370,7 @@ function drawPlayField() {
     drawCells();
     drawGhost();
     drawControlledTetromino();
+    drawNextTetromino();
     drawGameoverText();
 };
 
@@ -458,8 +462,31 @@ function drawGhost() {
     };
 };
 
+// Displays the next tetromino.
+function drawNextTetromino() {
+    nextContext.clearRect(0, 0, nextCanvas.width, nextCanvas.height);
+    const nextTetromino = gameVars.tetrominoBag[gameVars.tetrominoBag.length - 1];
+    if (nextTetromino) {
+        nextContext.fillStyle = TETROMINO_COLORS[nextTetromino] || "black";
+        const tetromino = TETROMINOS[nextTetromino][0];
+        for (let row = 0; row < tetromino.length; row++) {
+            for (let column = 0; column < tetromino[row].length; column++) {
+                if (tetromino[row][column]) {
+                    nextContext.fillRect(CELL_WIDTH * column + (tetromino[0].length === 3 ? 20 : 0), CELL_HEIGHT * (4 - row - 1) + (tetromino.length === 4 ? 20 : 0), CELL_WIDTH, CELL_HEIGHT);
+                };
+            };
+        };
+    };
+};
+
 /**
  * Spawn a new tetromino for the player by drawing from the bag.
+ * 
+ * Following the Tetris Guidelines, the tetrominos:
+ * - Are created in the guideline position
+ * - Are created in the guideline rotation
+ * - Immediately moved down 1 line if possible
+ * - Cause a gameover if created inside another tetromino
  */
 function createControlledTetromino() {
     const tetromino = gameVars.tetrominoBag.pop();
