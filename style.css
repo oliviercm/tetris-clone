@@ -153,8 +153,9 @@ table {
     justify-content: center;
     line-height: 1.5;
     border-top: 4px solid black;
+    padding-top: 8px;
 }
 
 #info-div ul li {
-    margin: 16px;
+    margin: 16px 8px 16px 8px;
 }
