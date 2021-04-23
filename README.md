@@ -2,7 +2,7 @@
 This is a Tetris clone created with HTML+CSS+JS for running in browsers. No libraries are used in this code.
 
 # Gameplay
-Gameplay is mostly (but not completely) designed around the 2009 Tetris Design Guideline published by the Tetris Company.
+Gameplay is mostly designed around the 2009 Tetris Design Guideline published by the Tetris Company.
 A copy of the guideline is included in this repository.
 Some of Tetris Guideline mechanics included in this clone are:
 * (3.1) Tetromino shapes & colors
