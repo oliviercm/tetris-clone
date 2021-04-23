@@ -308,6 +308,7 @@ const gameVars = {
     score: 0, // The player's current score.
     clearedLines: 0, // The amount of lines cleared, used to increase the difficulty level at certain thresholds.
     tetrominoBag: [], // Stores the bag of tetrominos which the player pulls from. When empty, it is refilled with a shuffled bag of each of the 7 tetrominos.
+    highScore: JSON.parse(localStorage.getItem("highscore") || "0"),
 };
 
 // Information about the currently controlled tetromino
@@ -333,6 +334,7 @@ let playfield = Array(PLAYFIELD_WIDTH).fill().map(() => Array(PLAYFIELD_HEIGHT +
 
 async function initialize() {
     drawLoadingScreen();
+    drawStoredHighscore();
 
     await loadResources();
 
@@ -555,8 +557,18 @@ function drawHeldTetromino() {
     };
 };
 
+function drawStoredHighscore() {
+    if (localStorage.getItem("highscore")) {
+        const highElement = document.getElementById("highscore");
+        highElement.textContent = JSON.parse(localStorage.getItem("highscore"));
+    };
+};
+
 // Displays the current game statistics (score, level).
 function drawStats() {
+    const highElement = document.getElementById("highscore");
+    highElement.textContent = Math.max(gameVars.highScore, gameVars.score);
+
     const scoreElement = document.getElementById("score");
     scoreElement.textContent = gameVars.score;
 
@@ -669,6 +681,10 @@ function gameOver() {
         playSound(AUDIO.gameover);
     }, 300);
     AUDIO.theme.pause();
+    gameVars.highScore = Math.max(0, gameVars.score, gameVars.highScore || 0);
+    if (gameVars.highScore > JSON.parse(localStorage.getItem("highscore") || "0")) {
+        localStorage.setItem("highscore", JSON.stringify(gameVars.score));
+    };
 };
 
 // Locks the controlled tetromino in place by adding it to the playfield.

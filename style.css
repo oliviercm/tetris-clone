@@ -135,7 +135,8 @@ table {
     display: flex;
     flex-direction: column;
     justify-content: center;
-    margin-top: 36px;
+    margin-top: 16px;
+    margin-bottom: 16px;
 }
 
 #stats-div div {
@@ -150,7 +151,6 @@ table {
     justify-content: center;
     line-height: 1.5;
     border-top: 4px solid black;
-    margin-top: 64px;
 }
 
 #info-div ul li {
