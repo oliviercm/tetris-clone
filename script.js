@@ -382,8 +382,11 @@ function startGame() {
     gameVars.active = true;
     gameVars.paused = false;
     gameVars.gameOver = false;
-    gameVars.score = 0;
+    gameVars.globalTick = 0;
     gameVars.difficulty = 1;
+    gameVars.score = 0;
+    gameVars.clearedLines = 0;
+    gameVars.tetrominoBag = 0;
 
     initializePlayfield();
     drawPlayField();
