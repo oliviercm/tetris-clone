@@ -713,6 +713,7 @@ function tetrominoGravity() {
             playerVars.controlledTetrominoPositionY -= 1;
             if (playerVars.controlledTetrominoPositionY < playerVars.controlledTetrominoLowestLine) {
                 playerVars.controlledTetrominoLowestLine = playerVars.controlledTetrominoPositionY;
+                playerVars.controlledTetrominoLockDelay = TPS / 2;
                 playerVars.controlledTetrominoLockDelayExtensions = 0;
             };
         };
