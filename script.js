@@ -322,6 +322,20 @@ const playerVars = {
     controlledTetrominoLowestLine: null, // The lowest line the controlled tetromino has reached. Reaching a new lowest line resets the amount of allowed lock delay extensions to 15.
     heldTetromino: null, // The currently held tetromino.
     hasHeldTetromino: false,
+    keyStates: {
+        left: {
+            pressed: false,
+            heldTicks: 0,
+        },
+        right: {
+            pressed: false,
+            heldTicks: 0,
+        },
+        down: {
+            pressed: false,
+            heldTicks: 0,
+        },
+    },
 };
 
 // Initialize playfield matrix (stores position of locked tetrominos)
@@ -448,6 +462,7 @@ function pauseGame() {
 function tick() {
     if (gameVars.active && !gameVars.paused) {
         gameVars.globalTick += 1;
+        handleKeyStates();
         tetrominoGravity();
         drawPlayField();
     };
@@ -826,7 +841,7 @@ function softDrop() {
     };
 };
 
-// Immediately move the piece as far down as it can go and lock it in place.
+// Immediately move the controlled tetromino as far down as it can go and lock it in place.
 function hardDrop() {
     let linesDropped = 0;
     while (tryMovement(0, -1)) {
@@ -839,7 +854,7 @@ function hardDrop() {
 
 // Check the playfield for filled lines.
 // If a filled line is found, delete the line and shift all lines above it 1 line towards the ground.
-// If 4 lines are scored at once (tetris), play a different sound.
+// If a line clear threshold has been met, increase the level.
 function scoreLines() {
     let clearedLines = 0;
     for (let row = 0; row < (PLAYFIELD_HEIGHT + PLAYFIELD_HEIGHT_BUFFER); row++) {
@@ -857,7 +872,7 @@ function scoreLines() {
         };
     };
     if (clearedLines > 0) {
-        if (clearedLines >= 4) {
+        if (clearedLines >= 4) { // If 4 lines are scored at once (tetris), play a special sound.
             playSound(AUDIO.tetris);
         } else {
             playSound(AUDIO.line);
@@ -917,6 +932,26 @@ function playSound(sound) {
     };
 };
 
+function handleKeyStates() {
+    for (const key in playerVars.keyStates) {
+        if (playerVars.keyStates[key].pressed) {
+            playerVars.keyStates[key].heldTicks++;
+        } else {
+            playerVars.keyStates[key].heldTicks = 0;
+        };
+    };
+    const holdDelayTicks = 10;
+    if (playerVars.keyStates["left"].heldTicks >= holdDelayTicks && (playerVars.keyStates["left"].heldTicks - holdDelayTicks) % 2 === 0) {
+        moveLeft();
+    };
+    if (playerVars.keyStates["right"].heldTicks >= holdDelayTicks && (playerVars.keyStates["right"].heldTicks - holdDelayTicks) % 2 === 0) {
+        moveRight();
+    };
+    if (playerVars.keyStates["down"].heldTicks >= holdDelayTicks) {
+        softDrop();
+    };
+};
+
 function handleKeyDown(event) {
     if (event.code === "Enter") {
         event.preventDefault();
@@ -944,17 +979,26 @@ function handleKeyDown(event) {
         };
         case "ArrowLeft": {
             event.preventDefault();
-            moveLeft();
+            if (!playerVars.keyStates.left.pressed) {
+                moveLeft();
+            };
+            playerVars.keyStates.left.pressed = true;
             break;
         };
         case "ArrowRight": {
             event.preventDefault();
-            moveRight();
+            if (!playerVars.keyStates.right.pressed) {
+                moveRight();
+            };
+            playerVars.keyStates.right.pressed = true;
             break;
         };
         case "ArrowDown": {
             event.preventDefault();
-            softDrop();
+            if (!playerVars.keyStates.down.pressed) {
+                softDrop();
+            };
+            playerVars.keyStates.down.pressed = true;
             break;
         };
         case "Space": {
@@ -968,38 +1012,16 @@ function handleKeyDown(event) {
 
 function handleKeyUp(event) {
     switch (event.code) {
-        case "KeyZ": {
-            playerVars.keys.z;
-            break;
-        };
-        case "KeyX": {
-            event.preventDefault();
-            rotateRight();
-            break;
-        };
-        case "KeyC": {
-            event.preventDefault();
-            holdTetromino();
-            break;
-        };
         case "ArrowLeft": {
-            event.preventDefault();
-            moveLeft();
+            playerVars.keyStates.left.pressed = false;
             break;
         };
         case "ArrowRight": {
-            event.preventDefault();
-            moveRight();
+            playerVars.keyStates.right.pressed = false;
             break;
         };
         case "ArrowDown": {
-            event.preventDefault();
-            softDrop();
-            break;
-        };
-        case "Space": {
-            event.preventDefault();
-            hardDrop();
+            playerVars.keyStates.down.pressed = false;
             break;
         };
     };
