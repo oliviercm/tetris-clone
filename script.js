@@ -259,7 +259,8 @@ const gameVars = {
     paused: false,
     gameOver: false,
     globalTick: 0, // How many ticks have passed since the game has become active. Used to determine when to move tetromino due to gravity
-    difficulty: 0, // The overall difficulty. A higher difficulty means gravity will act faster. Valid values are between 0 and 20.
+    difficulty: 1, // The overall difficulty. A higher difficulty means gravity will act faster. Valid values are between 1 and 20.
+    score: 0, // The player's current score.
     tetrominoBag: [], // Stores the bag of tetrominos which the player pulls from. When empty, it is refilled with a shuffled bag of each of the 7 tetrominos.
 };
 
@@ -378,6 +379,7 @@ function drawPlayField() {
     drawControlledTetromino();
     drawNextTetromino();
     drawHeldTetromino();
+    drawStats();
     drawGameoverText();
 };
 
@@ -503,6 +505,15 @@ function drawHeldTetromino() {
     };
 };
 
+// Displays the current game statistics (score, level).
+function drawStats() {
+    const scoreElement = document.getElementById("score");
+    scoreElement.textContent = gameVars.score;
+
+    const levelElement = document.getElementById("level");
+    levelElement.textContent = gameVars.difficulty;
+};
+
 /**
  * Spawn a new tetromino for the player by drawing from the bag.
  * 
@@ -585,7 +596,7 @@ function tryMovement(offsetX = 0, offsetY = 0, rotation = playerVars.controlledT
  */
 function tetrominoGravity() {
     if (tryMovement(0, -1)) {
-        if (gameVars.globalTick % Math.max(20 - gameVars.difficulty, 1) === 0) {
+        if (gameVars.globalTick % Math.max(21 - gameVars.difficulty, 1) === 0) {
             playerVars.controlledTetrominoPositionY -= 1;
             if (playerVars.controlledTetrominoPositionY < playerVars.controlledTetrominoLowestLine) {
                 playerVars.controlledTetrominoLowestLine = playerVars.controlledTetrominoPositionY;
@@ -631,10 +642,13 @@ function lockControlledPiece() {
 
 // Immediately move the piece as far down as it can go and lock it in place.
 function hardDrop() {
+    let linesDropped = 0;
     while (tryMovement(0, -1)) {
         playerVars.controlledTetrominoPositionY -= 1;
+        linesDropped++;
     };
     lockControlledPiece();
+    gameVars.score += 2 * linesDropped;
 };
 
 function holdTetromino() {
@@ -656,13 +670,13 @@ function holdTetromino() {
 // If a filled line is found, delete the line and shift all lines above it 1 line towards the ground.
 // If 4 lines are scored at once (tetris), play a different sound.
 function scoreLines() {
-    let score = 0;
+    let clearedLines = 0;
     for (let row = 0; row < (PLAYFIELD_HEIGHT + PLAYFIELD_HEIGHT_BUFFER); row++) {
         let rowIsFilled = playfield.every(column => {
             return column[row];
         });
         while (rowIsFilled) {
-            score++;
+            clearedLines++;
             for (let column = 0; column < playfield.length; column++) {
                 playfield[column] = playfield[column].slice(0, row).concat(playfield[column].slice(row + 1, playfield[column].length), [null]);  
             };
@@ -671,13 +685,24 @@ function scoreLines() {
             });
         };
     };
-    if (score > 0) {
-        if (score >= 4) {
+    if (clearedLines > 0) {
+        if (clearedLines >= 4) {
             playSound(AUDIO.tetris);
         } else {
             playSound(AUDIO.line);
         };
-        
+    };
+    if (clearedLines === 1) {
+        gameVars.score += 100 * gameVars.difficulty;
+    };
+    if (clearedLines === 2) {
+        gameVars.score += 300 * gameVars.difficulty;
+    };
+    if (clearedLines === 3) {
+        gameVars.score += 500 * gameVars.difficulty;
+    };
+    if (clearedLines >= 4) {
+        gameVars.score += 800 * gameVars.difficulty;
     };
 };
 
@@ -795,6 +820,7 @@ function handleKeydown(event) {
             event.preventDefault();
             if (tryMovement(0, -1)) {
                 playerVars.controlledTetrominoPositionY -= 1;
+                gameVars.score += 1;
             };
             break;
         };
