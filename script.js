@@ -5,8 +5,9 @@
  * 
  * No libraries are used in this game.
  * 
- * Gameplay is mostly designed around the 2009 Tetris Design Guideline published by the Tetris Company: https://www.dropbox.com/s/g55gwls0h2muqzn/tetris%20guideline%20docs%202009.zip?dl=0&file_subpath=%2F2009+Tetris+Design+Guideline.pdf
- * Some of Tetris Guideline mechanics included are:
+ * Gameplay is mostly designed (but not completely) around the 2009 Tetris Design Guideline published by the Tetris Company: https://github.com/frankkopp/Tetris/blob/master/2009%20Tetris%20Design%20Guideline.pdf
+ * A copy of the guideline is also included next to this file.
+ * Some of Tetris Guideline mechanics included in this clone are:
  * - (3.1) Tetromino shapes & colors
  * - (3.4) Tetromino starting location & orientation
  * - (2.4.4) Ghost tetromino
@@ -15,6 +16,8 @@
  * - (3.3) "Bag system" random tetromino generation
  * - (5.3) "Super Rotation System", allowing rotation against walls and surfaces (wall-kicks)
  * - (5.4) Hard Drop
+ * - (5.5) Soft Drop
+ * - (5.6) Hold
  * - (5.7) Extended placement lock down
  */
 
@@ -404,7 +407,7 @@ function startGame() {
     gameVars.paused = false;
     gameVars.gameOver = false;
     gameVars.globalTick = 0;
-    gameVars.difficulty = 1;
+    gameVars.difficulty = 20;
     gameVars.score = 0;
     gameVars.clearedLines = 0;
     gameVars.tetrominoBag = [];
