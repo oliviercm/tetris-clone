@@ -2,7 +2,7 @@
 This is a Tetris clone created with HTML+CSS+JS for running in browsers. No libraries are used in this code.
 
 # Play it here!
-https://oliviercm.github.io/tetris-clone/index.html
+https://oliviercm.github.io/tetris-clone
 
 # Gameplay
 Gameplay is mostly designed around the 2009 Tetris Design Guideline published by the Tetris Company.
