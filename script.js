@@ -252,6 +252,51 @@ const AUDIO = {
     pause: new Audio("./sounds/pause.mp3"),
     shift: new Audio("./sounds/shift.mp3"),
 };
+const TPS = 60; // Frames/ticks per second
+const TICKS_PER_CELL = { // Amount of ticks before dropping tetromino 1 cell due to gravity based on difficulty
+    [1]: 36,
+    [2]: 32,
+    [3]: 29,
+    [4]: 25,
+    [5]: 22,
+    [6]: 18,
+    [7]: 15,
+    [8]: 11,
+    [9]: 7,
+    [10]: 5,
+    [11]: 4,
+    [12]: 4,
+    [13]: 4,
+    [14]: 3,
+    [15]: 3,
+    [16]: 3,
+    [17]: 2,
+    [18]: 2,
+    [19]: 2,
+    [20]: 1,
+};
+const REQUIRED_LINES_PER_LEVEL = { // Amount of cleared lines needed for each level (cumulative)
+    [1]: 0,
+    [2]: 10,
+    [3]: 20,
+    [4]: 30,
+    [5]: 40,
+    [6]: 50,
+    [7]: 60,
+    [8]: 70,
+    [9]: 80,
+    [10]: 90,
+    [11]: 100,
+    [12]: 110,
+    [13]: 120,
+    [14]: 130,
+    [15]: 140,
+    [16]: 150,
+    [17]: 160,
+    [18]: 170,
+    [19]: 180,
+    [20]: 190,
+};
 
 // Core game variables
 const gameVars = {
@@ -261,6 +306,7 @@ const gameVars = {
     globalTick: 0, // How many ticks have passed since the game has become active. Used to determine when to move tetromino due to gravity
     difficulty: 1, // The overall difficulty. A higher difficulty means gravity will act faster. Valid values are between 1 and 20.
     score: 0, // The player's current score.
+    clearedLines: 0, // The amount of lines cleared, used to increase the difficulty level at certain thresholds.
     tetrominoBag: [], // Stores the bag of tetrominos which the player pulls from. When empty, it is refilled with a shuffled bag of each of the 7 tetrominos.
 };
 
@@ -294,8 +340,7 @@ async function initialize() {
     document.addEventListener("keydown", handleKeydown);
     canvas.addEventListener("click", handleClick);
 
-    const tps = 30;
-    setInterval(tick, 1000 / tps);
+    setInterval(tick, 1000 / TPS);
 };
 
 function loadResources() {
@@ -337,6 +382,8 @@ function startGame() {
     gameVars.active = true;
     gameVars.paused = false;
     gameVars.gameOver = false;
+    gameVars.score = 0;
+    gameVars.level = 1;
 
     initializePlayfield();
     drawPlayField();
@@ -532,7 +579,7 @@ function createControlledTetromino(override) {
     playerVars.controlledTetrominoRotation = 0;
     playerVars.controlledTetrominoPositionX = Math.trunc(((PLAYFIELD_WIDTH - 1) / 2) - 1);
     playerVars.controlledTetrominoPositionY = PLAYFIELD_HEIGHT - 1;
-    playerVars.controlledTetrominoLockDelay = 15;
+    playerVars.controlledTetrominoLockDelay = TPS / 2;
     playerVars.controlledTetrominoLockDelayExtensions = 0;
     playerVars.controlledTetrominoLowestLine = playerVars.controlledTetrominoPositionY;
     if (playerVars.controlledTetrominoShape === "i") {
@@ -553,7 +600,7 @@ function createControlledTetromino(override) {
 function extendControlledTetrominoLockDelay() {
     playerVars.controlledTetrominoLockDelayExtensions += 1;
     if (playerVars.controlledTetrominoLockDelayExtensions < 15) {
-        playerVars.controlledTetrominoLockDelay = 15;
+        playerVars.controlledTetrominoLockDelay = playerVars.controlledTetrominoLockDelay = TPS / 2;
     } else if (playerVars.controlledTetrominoLockDelayExtensions >= 15) {
         playerVars.controlledTetrominoLockDelay = 0;
     };
@@ -596,7 +643,7 @@ function tryMovement(offsetX = 0, offsetY = 0, rotation = playerVars.controlledT
  */
 function tetrominoGravity() {
     if (tryMovement(0, -1)) {
-        if (gameVars.globalTick % Math.max(21 - gameVars.difficulty, 1) === 0) {
+        if (gameVars.globalTick % (TICKS_PER_CELL[gameVars.difficulty] || 1) === 0) {
             playerVars.controlledTetrominoPositionY -= 1;
             if (playerVars.controlledTetrominoPositionY < playerVars.controlledTetrominoLowestLine) {
                 playerVars.controlledTetrominoLowestLine = playerVars.controlledTetrominoPositionY;
@@ -703,6 +750,11 @@ function scoreLines() {
     };
     if (clearedLines >= 4) {
         gameVars.score += 800 * gameVars.difficulty;
+    };
+    gameVars.clearedLines += clearedLines;
+    if (REQUIRED_LINES_PER_LEVEL[gameVars.difficulty + 1] && gameVars.clearedLines >= REQUIRED_LINES_PER_LEVEL[gameVars.difficulty + 1]) {
+        gameVars.difficulty++;
+        playSound(AUDIO.level);
     };
 };
 
