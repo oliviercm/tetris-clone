@@ -17,9 +17,12 @@ Some of Tetris Guideline mechanics included in this clone are:
 * (5.6) Hold
 * (5.7) Extended placement lock down
 
-# Gameplay Video
+# Video
+## Long video (~7 minutes)
+[Link to longer gameplay video](https://youtu.be/f6fVIvORWjU)
+## Short video (~1 minute)
 https://user-images.githubusercontent.com/7808054/115843313-8df4f500-a3d3-11eb-86e0-5ee0064421c6.mp4
 
-# Gameplay Screenshots
+# Screenshots
 ![Gameplay Screenshot 1](/screenshot1.PNG)
 ![Gameplay Screenshot 2](/screenshot2.PNG)
