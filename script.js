@@ -407,7 +407,7 @@ function startGame() {
     gameVars.paused = false;
     gameVars.gameOver = false;
     gameVars.globalTick = 0;
-    gameVars.difficulty = 20;
+    gameVars.difficulty = 1;
     gameVars.score = 0;
     gameVars.clearedLines = 0;
     gameVars.tetrominoBag = [];
