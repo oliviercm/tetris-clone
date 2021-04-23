@@ -16,3 +16,7 @@ Some of Tetris Guideline mechanics included in this clone are:
 * (5.5) Soft Drop
 * (5.6) Hold
 * (5.7) Extended placement lock down
+
+# Screenshots
+![](screenshot1.png)
+![](screenshot2.png)
