@@ -837,12 +837,16 @@ function handleKeydown(event) {
             const desiredRotation = mod(playerVars.controlledTetrominoRotation - 1, 4);
             const kickOffsetRules = playerVars.controlledTetrominoShape !== "i" ? "normal" : "modified";
             const kickOffsets = KICK_OFFSETS[kickOffsetRules][playerVars.controlledTetrominoRotation][-1];
+            let extended = false;
             for (const kickOffset of kickOffsets) {
                 if (tryMovement(kickOffset[0], kickOffset[1], desiredRotation)) {
+                    if (!extended && !tryMovement(0, -1)) {
+                        extendControlledTetrominoLockDelay();
+                    };
                     playerVars.controlledTetrominoPositionX += kickOffset[0];
                     playerVars.controlledTetrominoPositionY += kickOffset[1];
                     playerVars.controlledTetrominoRotation = desiredRotation;
-                    if (!tryMovement(0, -1)) {
+                    if (!extended && !tryMovement(0, -1)) {
                         extendControlledTetrominoLockDelay();
                     };
                     playSound(AUDIO.rotate);
@@ -856,12 +860,16 @@ function handleKeydown(event) {
             const desiredRotation = mod(playerVars.controlledTetrominoRotation + 1, 4);
             const kickOffsetRules = playerVars.controlledTetrominoShape !== "i" ? "normal" : "modified";
             const kickOffsets = KICK_OFFSETS[kickOffsetRules][playerVars.controlledTetrominoRotation][1];
+            let extended = false;
             for (const kickOffset of kickOffsets) {
                 if (tryMovement(kickOffset[0], kickOffset[1], desiredRotation)) {
+                    if (!extended && !tryMovement(0, -1)) {
+                        extendControlledTetrominoLockDelay();
+                    };
                     playerVars.controlledTetrominoPositionX += kickOffset[0];
                     playerVars.controlledTetrominoPositionY += kickOffset[1];
                     playerVars.controlledTetrominoRotation = desiredRotation;
-                    if (!tryMovement(0, -1)) {
+                    if (!extended && !tryMovement(0, -1)) {
                         extendControlledTetrominoLockDelay();
                     };
                     playSound(AUDIO.rotate);
