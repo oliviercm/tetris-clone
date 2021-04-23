@@ -1,5 +1,5 @@
 /**
- * Author: Olivier Chan Sion Moy
+ * Author: oliviercm @ https://github.com/oliviercm
  * 
  * This is an HTML+CSS+JS Tetris clone.
  * 
