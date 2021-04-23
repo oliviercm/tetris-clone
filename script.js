@@ -383,7 +383,7 @@ function startGame() {
     gameVars.paused = false;
     gameVars.gameOver = false;
     gameVars.score = 0;
-    gameVars.level = 1;
+    gameVars.difficulty = 1;
 
     initializePlayfield();
     drawPlayField();
