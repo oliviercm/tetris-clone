@@ -256,7 +256,7 @@ const AUDIO = {
     shift: new Audio("./sounds/shift.mp3"),
 };
 const TPS = 60; // Frames/ticks per second
-const TICKS_PER_CELL = { // Amount of ticks before dropping tetromino 1 cell due to gravity based on difficulty
+const TICKS_PER_LINE = { // Amount of ticks before dropping tetromino 1 cell due to gravity based on difficulty
     [1]: 36,
     [2]: 32,
     [3]: 29,
@@ -709,7 +709,7 @@ function tryMovement(offsetX = 0, offsetY = 0, rotation = playerVars.controlledT
  */
 function tetrominoGravity() {
     if (tryMovement(0, -1)) {
-        if (gameVars.globalTick % (TICKS_PER_CELL[gameVars.difficulty] || 1) === 0) {
+        if (gameVars.globalTick % (TICKS_PER_LINE[gameVars.difficulty] || 1) === 0) {
             playerVars.controlledTetrominoPositionY -= 1;
             if (playerVars.controlledTetrominoPositionY < playerVars.controlledTetrominoLowestLine) {
                 playerVars.controlledTetrominoLowestLine = playerVars.controlledTetrominoPositionY;
