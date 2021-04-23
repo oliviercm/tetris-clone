@@ -18,5 +18,5 @@ Some of Tetris Guideline mechanics included in this clone are:
 * (5.7) Extended placement lock down
 
 # Screenshots
-![](screenshot1.png)
-![](screenshot2.png)
+![Gameplay Screenshot 1](/screenshot1.PNG)
+![Gameplay Screenshot 2](/screenshot2.PNG)
