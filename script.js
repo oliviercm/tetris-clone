@@ -7,7 +7,7 @@
  * 
  * Gameplay is mostly designed around the 2009 Tetris Design Guideline published by the Tetris Company.
  * A copy of the guideline is included next to this file.
- * Some of Tetris Guideline mechanics included in this clone are:
+ * Some of the Tetris Guideline mechanics included in this clone are:
  * - (3.1) Tetromino shapes & colors
  * - (3.4) Tetromino starting location & orientation
  * - (2.4.4) Ghost tetromino

@@ -7,7 +7,7 @@ https://oliviercm.github.io/tetris-clone
 # Gameplay
 Gameplay is mostly designed around the [2009 Tetris Design Guideline](https://github.com/oliviercm/tetris-clone/blob/main/2009%20Tetris%20Design%20Guideline.pdf) published by the Tetris Company.
 [A copy of the guideline is included in this repository.](https://github.com/oliviercm/tetris-clone/blob/main/2009%20Tetris%20Design%20Guideline.pdf)
-Some of Tetris Guideline mechanics included in this clone are:
+Some of the Tetris Guideline mechanics included in this clone are:
 * (3.1) Tetromino shapes & colors
 * (3.4) Tetromino starting location & orientation
 * (2.4.4) Ghost tetromino
