@@ -73,11 +73,14 @@ table {
 }
 
 #left-div, #right-div {
-    width: 200px;
+    width: 240px;
     height: 800px;
 }
 
 #left-div {
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
     border-top-left-radius: 4px;
     border-bottom-left-radius: 4px;
     border-top: 4px solid black;
@@ -108,3 +111,18 @@ table {
     border-radius: 4px;
     margin-top: 4px;
 }
+
+#controls-div {
+    font-family: "PressStart";
+    font-size: 12px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    margin-bottom: 32px;
+}
+
+#controls-list {
+    display: flex;
+    justify-content: space-between;
+};

@@ -24,6 +24,9 @@ const context = canvas.getContext("2d");
 const nextCanvas = document.getElementById("next-canvas");
 const nextContext = nextCanvas.getContext("2d");
 
+const holdCanvas = document.getElementById("hold-canvas");
+const holdContext = holdCanvas.getContext("2d");
+
 // Define core gameplay constants
 const PLAYFIELD_WIDTH = 10;
 const PLAYFIELD_HEIGHT = 20;
@@ -247,6 +250,7 @@ const AUDIO = {
     level: new Audio("./sounds/level.mp3"),
     theme: new Audio("./sounds/theme.mp3"),
     pause: new Audio("./sounds/pause.mp3"),
+    shift: new Audio("./sounds/shift.mp3"),
 };
 
 // Core game variables
@@ -268,6 +272,8 @@ const playerVars = {
     controlledTetrominoLockDelay: null, // Ticks before the tetromino locks in place (when touching ground)
     controlledTetrominoLockDelayExtensions: null, // The amount of times the player has reset the lock delay by rotating/moving the controlled tetromino. Maximum of 15 times, which is reset when the controlled tetromino reaches a new lowest line.
     controlledTetrominoLowestLine: null, // The lowest line the controlled tetromino has reached. Reaching a new lowest line resets the amount of allowed lock delay extensions to 15.
+    heldTetromino: null, // The currently held tetromino.
+    hasHeldTetromino: false,
 };
 
 // Initialize playfield matrix (stores position of locked tetrominos)
@@ -371,6 +377,7 @@ function drawPlayField() {
     drawGhost();
     drawControlledTetromino();
     drawNextTetromino();
+    drawHeldTetromino();
     drawGameoverText();
 };
 
@@ -479,6 +486,23 @@ function drawNextTetromino() {
     };
 };
 
+// Displays the held tetromino.
+function drawHeldTetromino() {
+    holdContext.clearRect(0, 0, holdCanvas.width, holdCanvas.height);
+    const heldTetromino = playerVars.heldTetromino;
+    if (heldTetromino) {
+        holdContext.fillStyle = TETROMINO_COLORS[heldTetromino] || "black";
+        const tetromino = TETROMINOS[heldTetromino][0];
+        for (let row = 0; row < tetromino.length; row++) {
+            for (let column = 0; column < tetromino[row].length; column++) {
+                if (tetromino[row][column]) {
+                    holdContext.fillRect(CELL_WIDTH * column + (tetromino[0].length === 3 ? 20 : 0), CELL_HEIGHT * (4 - row - 1) + (tetromino.length === 4 ? 20 : 0), CELL_WIDTH, CELL_HEIGHT);
+                };
+            };
+        };
+    };
+};
+
 /**
  * Spawn a new tetromino for the player by drawing from the bag.
  * 
@@ -488,8 +512,8 @@ function drawNextTetromino() {
  * - Immediately moved down 1 line if possible
  * - Cause a gameover if created inside another tetromino
  */
-function createControlledTetromino() {
-    const tetromino = gameVars.tetrominoBag.pop();
+function createControlledTetromino(override) {
+    const tetromino = override || gameVars.tetrominoBag.pop();
     if (gameVars.tetrominoBag.length <= 0) {
         dealTetrominos();
     };
@@ -582,7 +606,7 @@ function gameOver() {
     drawPlayField();
     setTimeout(() => {
         playSound(AUDIO.gameover);
-    }, 500);
+    }, 300);
     AUDIO.theme.pause();
 };
 
@@ -602,6 +626,7 @@ function lockControlledPiece() {
     scoreLines();
     createControlledTetromino();
     playSound(AUDIO.land);
+    playerVars.hasHeldTetromino = false;
 };
 
 // Immediately move the piece as far down as it can go and lock it in place.
@@ -610,6 +635,21 @@ function hardDrop() {
         playerVars.controlledTetrominoPositionY -= 1;
     };
     lockControlledPiece();
+};
+
+function holdTetromino() {
+    if (!playerVars.hasHeldTetromino) {
+        if (!playerVars.heldTetromino) {
+            playerVars.heldTetromino = playerVars.controlledTetrominoShape;
+            createControlledTetromino();
+        } else {
+            const temp = playerVars.heldTetromino;
+            playerVars.heldTetromino = playerVars.controlledTetrominoShape;
+            createControlledTetromino(temp);
+        };
+        playerVars.hasHeldTetromino = true;
+        playSound(AUDIO.shift);
+    };
 };
 
 // Check the playfield for filled lines.
@@ -722,6 +762,11 @@ function handleKeydown(event) {
                     break;
                 };
             };
+            break;
+        };
+        case "KeyC": {
+            event.preventDefault();
+            holdTetromino();
             break;
         };
         case "ArrowLeft": {

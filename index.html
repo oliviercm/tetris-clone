@@ -9,16 +9,47 @@
 
 <body>
     <div id="game-container">
-        <div id="left-div" width="200" height="800">
+        <div id="left-div" width="300" height="800">
             <div id="hold-div">
                 <span>HOLD</span>
                 <canvas id="hold-canvas" width="160" height="160"></canvas>
+            </div>
+            <div id="controls-div">
+                <span style="font-size: 24px; margin-bottom: 8px;">CONTROLS</span>
+                <div id="controls-list">
+                    <ul style="margin-right: 1em;">
+                        <li>Z</li>
+                        <li>X</li>
+                        <li>C</li>
+                        <li>&nbsp;</li>
+                        <li>LEFT</li>
+                        <li>RIGHT</li>
+                        <li>&nbsp;</li>
+                        <li>DOWN</li>
+                        <li>SPACE</li>
+                        <li>&nbsp;</li>
+                        <li>ENTER</li>
+                    </ul>
+                    <ul style="margin-left: 1em;">
+                        <li>ROTATE LEFT</li>
+                        <li>ROTATE RIGHT</li>
+                        <li>HOLD</li>
+                        <li>&nbsp;</li>
+                        <li>MOVE LEFT</li>
+                        <li>MOVE RIGHT</li>
+                        <li>&nbsp;</li>
+                        <li>SOFT DROP</li>
+                        <li>HARD DROP</li>
+                        <li>&nbsp;</li>
+                        <li>PAUSE</li>
+                    </ul>
+                </div>
             </div>
         </div>
         <canvas id="game-canvas" width="400" height="800">
             Your browser does not support this game. Try using another browser.
         </canvas>
-        <div id="right-div" width="200" height="800">
+        <div id="right-div" width="300" height="800">
             <div id="next-div">
                 <span>NEXT</span>
                 <canvas id="next-canvas" width="160" height="160"></canvas>
