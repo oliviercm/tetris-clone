@@ -256,7 +256,7 @@ const AUDIO = {
     shift: new Audio("./sounds/shift.mp3"),
 };
 const TPS = 60; // Frames/ticks per second
-const TICKS_PER_LINE = { // Amount of ticks before dropping tetromino 1 cell due to gravity based on difficulty
+const TICKS_PER_LINE = { // Amount of ticks before dropping tetromino 1 line due to gravity based on difficulty
     [1]: 36,
     [2]: 32,
     [3]: 29,
