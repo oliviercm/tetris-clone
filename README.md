@@ -14,13 +14,13 @@ Some of Tetris Guideline mechanics included in this clone are:
 * (2.4.1) Visible playfield size
 * (10.0) Playfield vertical buffer zone
 * (3.3) "Bag system" random tetromino generation
-* (5.3) "Super Rotation System", allowing rotation against walls and surfaces (wall-kicks)
+* (5.3) "Super Rotation System", allowing rotation against walls and surfaces (wall-kicks, t-spins)
 * (5.4) Hard Drop
 * (5.5) Soft Drop
 * (5.6) Hold
 * (5.7) Extended placement lock down
 
-# Video
+# Videos
 ## Long video (~7 minutes)
 [Link to longer gameplay video](https://youtu.be/f6fVIvORWjU)
 ## Short video (~1 minute)
