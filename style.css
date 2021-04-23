@@ -54,18 +54,18 @@ table {
 }
 /* END CSS RESET */
 
-/* @font-face {
-    font-family: "Press Start 2P";
-    src: url("./fonts/PressStart2P-Regular.ttf");
-} */
-
 #game-container {
+    background-color: hsl(200, 100%, 90%);
     display: flex;
     width: 100vw;
     height: 100vh;
     justify-content: center;
     align-items: center;
     align-content: center;
+}
+
+#game-container * {
+    background-color: white;
 }
 
 #game-canvas {
@@ -140,4 +140,19 @@ table {
 
 #stats-div div {
     margin: 16px 16px 16px 32px;
+}
+
+#info-div {
+    font-family: "PressStart";
+    font-size: 10px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    line-height: 1.5;
+    border-top: 4px solid black;
+    margin-top: 64px;
+}
+
+#info-div ul li {
+    margin: 16px;
 }

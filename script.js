@@ -374,7 +374,7 @@ function drawLoadingScreen() {
 function drawMenu() {
     context.clearRect(0, 0, canvas.width, canvas.height);
     context.textAlign = "center";
-    context.font = "bold 16px PressStart";
+    context.font = "bold 18px PressStart";
     context.fillText("Click here to start.", canvas.width / 2, canvas.height / 2);
 };
 
