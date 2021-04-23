@@ -390,6 +390,16 @@ function startGame() {
     gameVars.clearedLines = 0;
     gameVars.tetrominoBag = [];
 
+    playerVars.controlledTetrominoShape = null;
+    playerVars.controlledTetrominoPositionX = null;
+    playerVars.controlledTetrominoPositionY = null;
+    playerVars.controlledTetrominoRotation = null;
+    playerVars.controlledTetrominoLockDelay = null;
+    playerVars.controlledTetrominoLockDelayExtensions = null;
+    playerVars.controlledTetrominoLowestLine = null;
+    playerVars.heldTetromino = null;
+    playerVars.hasHeldTetromino = false;
+
     initializePlayfield();
     drawPlayField();
     dealTetrominos();
