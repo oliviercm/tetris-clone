@@ -759,7 +759,7 @@ function lockControlledPiece() {
 };
 
 function holdTetromino() {
-    if (!playerVars.hasHeldTetromino) {
+    if (!playerVars.hasHeldTetromino && playerVars.controlledTetrominoShape) {
         if (!playerVars.heldTetromino) {
             playerVars.heldTetromino = playerVars.controlledTetrominoShape;
             createControlledTetromino();
