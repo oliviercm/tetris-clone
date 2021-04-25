@@ -951,7 +951,7 @@ function handleKeyStates() {
     if (playerVars.keyStates["right"].heldTicks >= holdDelayTicks && (playerVars.keyStates["right"].heldTicks - holdDelayTicks) % 2 === 0) {
         moveRight();
     };
-    if (playerVars.keyStates["down"].heldTicks >= holdDelayTicks) {
+    if (playerVars.keyStates["down"].heldTicks >= 2) {
         softDrop();
     };
 };
