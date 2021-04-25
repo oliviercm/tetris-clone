@@ -338,6 +338,10 @@ const playerVars = {
             pressed: false,
             heldTicks: 0,
         },
+        space: {
+            pressed: false,
+            heldTicks: 0,
+        },
     },
 };
 
@@ -681,6 +685,9 @@ function extendControlledTetrominoLockDelay() {
  * @returns {Boolean} ```true``` if the movement is valid, ```false``` if not
  */
 function tryMovement(offsetX = 0, offsetY = 0, rotation = playerVars.controlledTetrominoRotation) {
+    if (!playerVars.controlledTetrominoShape) {
+        return false;
+    };
     const tetromino = TETROMINOS[playerVars.controlledTetrominoShape][rotation];
     for (let row = 0; row < tetromino.length; row++) {
         for (let column = 0; column < tetromino[row].length; column++) {
@@ -708,6 +715,9 @@ function tryMovement(offsetX = 0, offsetY = 0, rotation = playerVars.controlledT
  * If the tetromino is touching ground, decreases the delay before automatically locking the piece into place.
  */
 function tetrominoGravity() {
+    if (!playerVars.controlledTetrominoShape) {
+        return;
+    };
     if (tryMovement(0, -1)) {
         if (gameVars.globalTick % (TICKS_PER_LINE[gameVars.difficulty] || 1) === 0) {
             playerVars.controlledTetrominoPositionY -= 1;
@@ -753,13 +763,23 @@ function lockControlledPiece() {
         };
     };
     scoreLines();
-    createControlledTetromino();
     playSound(AUDIO.land);
     playerVars.hasHeldTetromino = false;
+    playerVars.controlledTetrominoShape = null;
+    playerVars.controlledTetrominoPositionX = null;
+    playerVars.controlledTetrominoPositionY = null;
+    playerVars.controlledTetrominoRotation = null;
+    playerVars.controlledTetrominoLockDelay = null;
+    playerVars.controlledTetrominoLockDelayExtensions = null;
+    playerVars.controlledTetrominoLowestLine = null;
+    setTimeout(createControlledTetromino, 200);
 };
 
 function holdTetromino() {
-    if (!playerVars.hasHeldTetromino && playerVars.controlledTetrominoShape) {
+    if (!playerVars.controlledTetrominoShape) {
+        return;
+    };
+    if (!playerVars.hasHeldTetromino) {
         if (!playerVars.heldTetromino) {
             playerVars.heldTetromino = playerVars.controlledTetrominoShape;
             createControlledTetromino();
@@ -774,6 +794,9 @@ function holdTetromino() {
 };
 
 function moveLeft() {
+    if (!playerVars.controlledTetrominoShape) {
+        return;
+    };
     if (tryMovement(-1, 0)) {
         playerVars.controlledTetrominoPositionX -= 1;
         if (!tryMovement(0, -1)) {
@@ -784,6 +807,9 @@ function moveLeft() {
 };
 
 function moveRight() {
+    if (!playerVars.controlledTetrominoShape) {
+        return;
+    };
     if (tryMovement(1, 0)) {
         playerVars.controlledTetrominoPositionX += 1;
         if (!tryMovement(0, -1)) {
@@ -794,6 +820,9 @@ function moveRight() {
 };
 
 function rotateLeft() {
+    if (!playerVars.controlledTetrominoShape) {
+        return;
+    };
     const desiredRotation = mod(playerVars.controlledTetrominoRotation - 1, 4);
     const kickOffsetRules = playerVars.controlledTetrominoShape !== "i" ? "normal" : "modified";
     const kickOffsets = KICK_OFFSETS[kickOffsetRules][playerVars.controlledTetrominoRotation][-1];
@@ -816,6 +845,9 @@ function rotateLeft() {
 };
 
 function rotateRight() {
+    if (!playerVars.controlledTetrominoShape) {
+        return;
+    };
     const desiredRotation = mod(playerVars.controlledTetrominoRotation + 1, 4);
     const kickOffsetRules = playerVars.controlledTetrominoShape !== "i" ? "normal" : "modified";
     const kickOffsets = KICK_OFFSETS[kickOffsetRules][playerVars.controlledTetrominoRotation][1];
@@ -839,6 +871,9 @@ function rotateRight() {
 
 // Move the controlled tetromino 1 line down.
 function softDrop() {
+    if (!playerVars.controlledTetrominoShape) {
+        return;
+    };
     if (tryMovement(0, -1)) {
         playerVars.controlledTetrominoPositionY -= 1;
         gameVars.score += 1;
@@ -847,6 +882,9 @@ function softDrop() {
 
 // Immediately move the controlled tetromino as far down as it can go and lock it in place.
 function hardDrop() {
+    if (!playerVars.controlledTetrominoShape) {
+        return;
+    };
     let linesDropped = 0;
     while (tryMovement(0, -1)) {
         playerVars.controlledTetrominoPositionY -= 1;
@@ -1007,7 +1045,10 @@ function handleKeyDown(event) {
         };
         case "Space": {
             event.preventDefault();
-            hardDrop();
+            if (!playerVars.keyStates.space.pressed) {
+                hardDrop();
+            };
+            playerVars.keyStates.space.pressed = true;
             break;
         };
     };
@@ -1026,6 +1067,10 @@ function handleKeyUp(event) {
         };
         case "ArrowDown": {
             playerVars.keyStates.down.pressed = false;
+            break;
+        };
+        case "Space": {
+            playerVars.keyStates.space.pressed = false;
             break;
         };
     };
