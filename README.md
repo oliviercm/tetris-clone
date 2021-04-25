@@ -5,8 +5,8 @@ This is a Tetris clone created with HTML+CSS+JS for running in browsers. No libr
 https://oliviercm.github.io/tetris-clone
 
 # Gameplay
-Gameplay is mostly designed around the [2009 Tetris Design Guideline](https://github.com/oliviercm/tetris-clone/blob/main/media/2009%20Tetris%20Design%20Guideline.pdf) published by the Tetris Company.
-[A copy of the guideline is included in this repository.](https://github.com/oliviercm/tetris-clone/blob/main/media/2009%20Tetris%20Design%20Guideline.pdf)
+Gameplay is mostly designed around the [2009 Tetris Design Guideline](</media/2009 Tetris Design Guideline.pdf>) published by the Tetris Company.
+[A copy of the guideline is included in this repository.](</media/2009 Tetris Design Guideline.pdf>)
 Some of the Tetris Guideline mechanics included in this clone are:
 * (3.1) Tetromino shapes & colors
 * (3.4) Tetromino starting location & orientation
