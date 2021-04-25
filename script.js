@@ -649,7 +649,7 @@ function createControlledTetromino(override) {
     playerVars.controlledTetrominoRotation = 0;
     playerVars.controlledTetrominoPositionX = Math.trunc(((PLAYFIELD_WIDTH - 1) / 2) - 1);
     playerVars.controlledTetrominoPositionY = PLAYFIELD_HEIGHT - 1;
-    playerVars.controlledTetrominoLockDelay = TPS / 2;
+    playerVars.controlledTetrominoLockDelay = TPS / 1.5;
     playerVars.controlledTetrominoLockDelayExtensions = 0;
     playerVars.controlledTetrominoLowestLine = playerVars.controlledTetrominoPositionY;
     if (playerVars.controlledTetrominoShape === "i") {
@@ -670,7 +670,7 @@ function createControlledTetromino(override) {
 function extendControlledTetrominoLockDelay() {
     playerVars.controlledTetrominoLockDelayExtensions += 1;
     if (playerVars.controlledTetrominoLockDelayExtensions < 15) {
-        playerVars.controlledTetrominoLockDelay = playerVars.controlledTetrominoLockDelay = TPS / 2;
+        playerVars.controlledTetrominoLockDelay = playerVars.controlledTetrominoLockDelay = TPS / 1.5;
     } else if (playerVars.controlledTetrominoLockDelayExtensions >= 15) {
         playerVars.controlledTetrominoLockDelay = 0;
     };
@@ -723,7 +723,7 @@ function tetrominoGravity() {
             playerVars.controlledTetrominoPositionY -= 1;
             if (playerVars.controlledTetrominoPositionY < playerVars.controlledTetrominoLowestLine) {
                 playerVars.controlledTetrominoLowestLine = playerVars.controlledTetrominoPositionY;
-                playerVars.controlledTetrominoLockDelay = TPS / 2;
+                playerVars.controlledTetrominoLockDelay = TPS / 1.5;
                 playerVars.controlledTetrominoLockDelayExtensions = 0;
             };
         };
