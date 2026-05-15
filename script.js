@@ -503,8 +503,19 @@ function drawCells() {
 };
 
 function drawCell(x, y, color) {
+    const px = CELL_WIDTH * x;
+    const py = CELL_HEIGHT * (PLAYFIELD_HEIGHT - y - 1);
+    const w = CELL_WIDTH;
+    const h = CELL_HEIGHT;
+    const gap = 1;
+
     context.fillStyle = TETROMINO_COLORS[color] || "black";
-    context.fillRect(CELL_WIDTH * x, CELL_HEIGHT * (PLAYFIELD_HEIGHT - y - 1), CELL_WIDTH, CELL_HEIGHT);
+    context.fillRect(px + gap, py + gap, w - gap * 2, h - gap * 2);
+
+    // Black border
+    context.strokeStyle = "black";
+    context.lineWidth = 2;
+    context.strokeRect(px + gap + 1, py + gap + 1, w - gap * 2 - 2, h - gap * 2 - 2);
 };
 
 function drawControlledTetromino() {
@@ -583,12 +594,22 @@ function drawNextTetromino() {
     nextContext.clearRect(0, 0, nextCanvas.width, nextCanvas.height);
     const nextTetromino = gameVars.tetrominoBag[gameVars.tetrominoBag.length - 1];
     if (nextTetromino) {
-        nextContext.fillStyle = TETROMINO_COLORS[nextTetromino] || "black";
         const tetromino = TETROMINOS[nextTetromino][0];
+        const offsetX = tetromino[0].length === 3 ? 20 : 0;
+        const offsetY = tetromino.length === 4 ? 20 : 0;
         for (let row = 0; row < tetromino.length; row++) {
             for (let column = 0; column < tetromino[row].length; column++) {
                 if (tetromino[row][column]) {
-                    nextContext.fillRect(CELL_WIDTH * column + (tetromino[0].length === 3 ? 20 : 0), CELL_HEIGHT * (4 - row - 1) + (tetromino.length === 4 ? 20 : 0), CELL_WIDTH, CELL_HEIGHT);
+                    const px = CELL_WIDTH * column + offsetX;
+                    const py = CELL_HEIGHT * (4 - row - 1) + offsetY;
+                    const w = CELL_WIDTH;
+                    const h = CELL_HEIGHT;
+                    const gap = 1;
+                    nextContext.fillStyle = TETROMINO_COLORS[nextTetromino] || "black";
+                    nextContext.fillRect(px + gap, py + gap, w - gap * 2, h - gap * 2);
+                    nextContext.strokeStyle = "black";
+                    nextContext.lineWidth = 2;
+                    nextContext.strokeRect(px + gap + 1, py + gap + 1, w - gap * 2 - 2, h - gap * 2 - 2);
                 };
             };
         };
@@ -600,12 +621,22 @@ function drawHeldTetromino() {
     holdContext.clearRect(0, 0, holdCanvas.width, holdCanvas.height);
     const heldTetromino = playerVars.heldTetromino;
     if (heldTetromino) {
-        holdContext.fillStyle = TETROMINO_COLORS[heldTetromino] || "black";
         const tetromino = TETROMINOS[heldTetromino][0];
+        const offsetX = tetromino[0].length === 3 ? 20 : 0;
+        const offsetY = tetromino.length === 4 ? 20 : 0;
         for (let row = 0; row < tetromino.length; row++) {
             for (let column = 0; column < tetromino[row].length; column++) {
                 if (tetromino[row][column]) {
-                    holdContext.fillRect(CELL_WIDTH * column + (tetromino[0].length === 3 ? 20 : 0), CELL_HEIGHT * (4 - row - 1) + (tetromino.length === 4 ? 20 : 0), CELL_WIDTH, CELL_HEIGHT);
+                    const px = CELL_WIDTH * column + offsetX;
+                    const py = CELL_HEIGHT * (4 - row - 1) + offsetY;
+                    const w = CELL_WIDTH;
+                    const h = CELL_HEIGHT;
+                    const gap = 1;
+                    holdContext.fillStyle = TETROMINO_COLORS[heldTetromino] || "black";
+                    holdContext.fillRect(px + gap, py + gap, w - gap * 2, h - gap * 2);
+                    holdContext.strokeStyle = "black";
+                    holdContext.lineWidth = 2;
+                    holdContext.strokeRect(px + gap + 1, py + gap + 1, w - gap * 2 - 2, h - gap * 2 - 2);
                 };
             };
         };
