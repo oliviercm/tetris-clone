@@ -306,10 +306,12 @@ const gameVars = {
     active: false, // Whether a game is active or not (the game is not active during the loading screen, before the user has clicked on the main canvas, and after a game over)
     paused: false,
     gameOver: false,
+    loading: true, // Whether the resources are still loading
     globalTick: 0, // How many ticks have passed since the game has become active. Used to determine when to move tetromino due to gravity
     difficulty: 1, // The overall difficulty. A higher difficulty means gravity will act faster. Valid values are between 1 and 20.
     score: 0, // The player's current score.
     clearedLines: 0, // The amount of lines cleared, used to increase the difficulty level at certain thresholds.
+    combo: 0, // Consecutive pieces that have cleared lines (shown as popup feedback)
     tetrominoBag: [], // Stores the bag of tetrominos which the player pulls from. When empty, it is refilled with a shuffled bag of each of the 7 tetrominos.
     highScore: JSON.parse(localStorage.getItem("highscore") || "0"),
 };
@@ -323,6 +325,7 @@ const playerVars = {
     controlledTetrominoLockDelay: null, // Ticks before the tetromino locks in place (when touching ground)
     controlledTetrominoLockDelayExtensions: null, // The amount of times the player has reset the lock delay by rotating/moving the controlled tetromino. Maximum of 15 times, which is reset when the controlled tetromino reaches a new lowest line.
     controlledTetrominoLowestLine: null, // The lowest line the controlled tetromino has reached. Reaching a new lowest line resets the amount of allowed lock delay extensions to 15.
+    spawnTime: null, // When the current tetromino spawned (used for the spawn pop animation)
     heldTetromino: null, // The currently held tetromino.
     hasHeldTetromino: false,
     keyStates: {
@@ -350,6 +353,348 @@ const playerVars = {
 let playfield = Array(PLAYFIELD_WIDTH).fill().map(() => Array(PLAYFIELD_HEIGHT + PLAYFIELD_HEIGHT_BUFFER).fill(null));
 
 /**
+ * GAME FEEL ("JUICE")
+ *
+ * Presentation-only systems layered on top of the core gameplay:
+ * - Screen shake (hard drops, line clears, game over)
+ * - Particles (lock dust, hard drop dust, line clear debris)
+ * - Full-screen flashes (line clear, tetris, level up, game over)
+ * - Floating score/combo/level popups
+ * - Hard drop motion trail
+ * - Lock flash (locked cells briefly flash white)
+ * - Animated line clears (rows flash, shrink away, then collapse with debris)
+ * - Ghost tetromino pulse, spawn pop, ambient menu rain
+ * - Impact freeze (game logic stalls 1-2 ticks when a piece locks)
+ *
+ * None of this changes gameplay state; it reads the playfield and draws.
+ */
+const fx = {
+    particles: [],
+    shakes: [],
+    flashes: [],
+    popups: [],
+    trails: [],
+    lockFlashes: [],
+    clears: [], // { rows, rowColors, start, duration }
+    rain: [], // ambient tetrominos falling on the menu screen
+    freezeUntil: 0, // game logic ticks are skipped until this timestamp (impact freeze)
+};
+const LINE_CLEAR_DURATION = 260; // ms a line clear animation lasts before the rows collapse
+
+function resetFx() {
+    fx.particles = [];
+    fx.shakes = [];
+    fx.flashes = [];
+    fx.popups = [];
+    fx.trails = [];
+    fx.lockFlashes = [];
+    fx.clears = [];
+    fx.freezeUntil = 0;
+};
+
+function spawnParticle(x, y, color, size, vx, vy, life, gravity) {
+    fx.particles.push({ x, y, vx, vy, size, color, gravity, start: performance.now(), life });
+    if (fx.particles.length > 400) {
+        fx.particles.splice(0, fx.particles.length - 400);
+    };
+};
+
+function spawnBurst(x, y, color, count, speed, life, gravity) {
+    for (let i = 0; i < count; i++) {
+        const angle = Math.random() * Math.PI * 2;
+        const s = (0.3 + Math.random() * 0.7) * speed;
+        spawnParticle(x, y, color, 2 + Math.random() * 4, Math.cos(angle) * s, Math.sin(angle) * s - speed * 0.4, life * (0.6 + Math.random() * 0.4), gravity);
+    };
+};
+
+function addShake(magnitude, duration) {
+    fx.shakes.push({ start: performance.now(), magnitude, duration });
+};
+
+function addFlash(color, alpha, duration) {
+    fx.flashes.push({ start: performance.now(), color, alpha, duration });
+};
+
+function addPopup(text, x, y, size, color, duration, delay) {
+    fx.popups.push({ text, x, y, size, color, start: performance.now() + (delay || 0), duration: duration || 900 });
+};
+
+function addLockFlash(cells) {
+    fx.lockFlashes.push({ cells, start: performance.now(), duration: 90 });
+};
+
+function addTrail(rotation, posX, startY, finalY, color) {
+    fx.trails.push({ rotation, posX, startY, finalY, color, start: performance.now(), duration: 150 });
+};
+
+function addClear(rows, rowColors) {
+    fx.clears.push({ rows, rowColors, start: performance.now(), duration: LINE_CLEAR_DURATION });
+};
+
+function makeRainPiece(y) {
+    return { shape: ["o", "i", "t", "l", "j", "s", "z"][Math.floor(Math.random() * 7)], x: Math.random() * canvas.width, y, speed: 0.4 + Math.random() };
+};
+
+/**
+ * Update all presentation effects. Called every render frame.
+ */
+function updateFx(now, dt) {
+    const step = dt / (1000 / TPS);
+
+    fx.particles = fx.particles.filter(p => (now - p.start) < p.life);
+    for (const p of fx.particles) {
+        p.x += p.vx * step;
+        p.y += p.vy * step;
+        p.vy += p.gravity * step;
+    };
+    fx.shakes = fx.shakes.filter(s => (now - s.start) < s.duration);
+    fx.flashes = fx.flashes.filter(f => (now - f.start) < f.duration);
+    fx.popups = fx.popups.filter(p => (now - p.start) < p.duration);
+    fx.trails = fx.trails.filter(t => (now - t.start) < t.duration);
+    fx.lockFlashes = fx.lockFlashes.filter(l => (now - l.start) < l.duration);
+
+    // Finish any line clear animations: collapse the rows and spawn the next tetromino
+    const finished = fx.clears.filter(c => (now - c.start) >= c.duration);
+    if (finished.length > 0) {
+        fx.clears = fx.clears.filter(c => (now - c.start) < c.duration);
+        for (const clear of finished) {
+            finalizeLineClear(clear);
+        };
+    };
+
+    // Ambient tetromino rain on the menu screen
+    if (!gameVars.active && !gameVars.gameOver) {
+        while (fx.rain.length < 10) {
+            fx.rain.push(makeRainPiece(Math.random() * canvas.height));
+        };
+        for (const r of fx.rain) {
+            r.y += r.speed * step;
+            if (r.y > canvas.height + 80) {
+                Object.assign(r, makeRainPiece(-80));
+            };
+        };
+    } else {
+        fx.rain = [];
+    };
+};
+
+/**
+ * Called when a line clear animation has finished: spawn debris particles,
+ * remove the rows from the playfield, and spawn the next tetromino.
+ */
+function finalizeLineClear(clear) {
+    for (const row of clear.rows) {
+        for (let x = 0; x < PLAYFIELD_WIDTH; x++) {
+            const color = clear.rowColors[row][x];
+            if (color) {
+                const px = x * CELL_WIDTH + CELL_WIDTH / 2;
+                const py = CELL_HEIGHT * (PLAYFIELD_HEIGHT - row - 1) + CELL_HEIGHT / 2;
+                spawnBurst(px, py, TETROMINO_COLORS[color], clear.rows.length >= 4 ? 3 : 2, 2.2, 600, 0.12);
+            };
+        };
+    };
+    for (const row of [...clear.rows].sort((a, b) => b - a)) {
+        removeRow(row);
+    };
+    createControlledTetromino();
+};
+
+/**
+ * Remove a single row from the playfield, shifting all rows above it down one line.
+ */
+function removeRow(row) {
+    for (let column = 0; column < PLAYFIELD_WIDTH; column++) {
+        playfield[column] = playfield[column].slice(0, row).concat(playfield[column].slice(row + 1), [null]);
+    };
+};
+
+/**
+ * Draws a beveled block (base color, light top/left edges, dark bottom/right edges, black border)
+ * on any canvas context.
+ */
+function drawCellPx(ctx, px, py, w, h, color) {
+    ctx.fillStyle = TETROMINO_COLORS[color] || "black";
+    ctx.fillRect(px, py, w, h);
+    const b = Math.max(2, w * 0.15);
+    ctx.fillStyle = "rgba(255, 255, 255, 0.35)";
+    ctx.fillRect(px, py, w, b);
+    ctx.fillRect(px, py, b, h);
+    ctx.fillStyle = "rgba(0, 0, 0, 0.25)";
+    ctx.fillRect(px, py + h - b, w, b);
+    ctx.fillRect(px + w - b, py, b, h);
+    ctx.strokeStyle = "black";
+    ctx.lineWidth = 2;
+    ctx.strokeRect(px + 1, py + 1, w - 2, h - 2);
+};
+
+/**
+ * Returns the current screen shake offset in pixels (random jitter that decays over each shake's duration).
+ */
+function getShakeOffset(now) {
+    let dx = 0;
+    let dy = 0;
+    for (const s of fx.shakes) {
+        const decay = 1 - (now - s.start) / s.duration;
+        dx += (Math.random() * 2 - 1) * s.magnitude * decay;
+        dy += (Math.random() * 2 - 1) * s.magnitude * decay;
+    };
+    return [Math.round(dx), Math.round(dy)];
+};
+
+function drawGrid() {
+    context.strokeStyle = "rgba(0, 0, 0, 0.06)";
+    context.lineWidth = 1;
+    for (let x = 1; x < PLAYFIELD_WIDTH; x++) {
+        context.beginPath();
+        context.moveTo(x * CELL_WIDTH, 0);
+        context.lineTo(x * CELL_WIDTH, canvas.height);
+        context.stroke();
+    };
+    for (let y = 1; y < PLAYFIELD_HEIGHT; y++) {
+        context.beginPath();
+        context.moveTo(0, y * CELL_HEIGHT);
+        context.lineTo(canvas.width, y * CELL_HEIGHT);
+        context.stroke();
+    };
+};
+
+function drawRain() {
+    const cell = 24;
+    context.globalAlpha = 0.1;
+    for (const r of fx.rain) {
+        const shape = TETROMINOS[r.shape][0];
+        for (let row = 0; row < shape.length; row++) {
+            for (let column = 0; column < shape[row].length; column++) {
+                if (shape[row][column]) {
+                    drawCellPx(context, r.x + column * cell, r.y + row * cell, cell, cell, r.shape);
+                };
+            };
+        };
+    };
+    context.globalAlpha = 1;
+};
+
+function drawClearingRows(now) {
+    for (const clear of fx.clears) {
+        const progress = (now - clear.start) / clear.duration;
+        for (const row of clear.rows) {
+            for (let x = 0; x < PLAYFIELD_WIDTH; x++) {
+                const color = clear.rowColors[row][x];
+                if (!color) {
+                    continue;
+                };
+                const px = x * CELL_WIDTH + 1;
+                const py = CELL_HEIGHT * (PLAYFIELD_HEIGHT - row - 1) + 1;
+                const w = CELL_WIDTH - 2;
+                const h = CELL_HEIGHT - 2;
+                if (progress < 0.4) {
+                    // Flash white
+                    drawCellPx(context, px, py, w, h, color);
+                    context.globalAlpha = Math.sin((progress / 0.4) * Math.PI);
+                    context.fillStyle = "white";
+                    context.fillRect(px, py, w, h);
+                    context.globalAlpha = 1;
+                } else {
+                    // Shrink away toward the row center
+                    const shrink = 1 - (progress - 0.4) / 0.6;
+                    if (shrink <= 0.03) {
+                        continue;
+                    };
+                    const sw = w * shrink;
+                    const sh = h * shrink;
+                    context.globalAlpha = shrink;
+                    drawCellPx(context, px + (w - sw) / 2, py + (h - sh) / 2, sw, sh, color);
+                    context.globalAlpha = 1;
+                }
+            };
+        };
+    };
+};
+
+function drawTrail(now) {
+    for (const t of fx.trails) {
+        const remaining = 1 - (now - t.start) / t.duration;
+        context.globalAlpha = 0.35 * remaining;
+        context.fillStyle = TETROMINO_COLORS[t.color];
+        const shape = TETROMINOS[t.color][t.rotation];
+        for (let column = 0; column < shape[0].length; column++) {
+            let topRow = null;
+            let bottomRow = null;
+            for (let row = 0; row < shape.length; row++) {
+                if (shape[row][column]) {
+                    if (topRow === null || row > topRow) {
+                        topRow = row;
+                    };
+                    if (bottomRow === null || row < bottomRow) {
+                        bottomRow = row;
+                    };
+                };
+            };
+            if (topRow === null) {
+                continue;
+            };
+            const px = (t.posX + column) * CELL_WIDTH;
+            const topPy = CELL_HEIGHT * (PLAYFIELD_HEIGHT - (t.startY + topRow) - 1);
+            const bottomPy = CELL_HEIGHT * (PLAYFIELD_HEIGHT - (t.finalY + bottomRow));
+            context.fillRect(px, topPy, CELL_WIDTH, bottomPy - topPy);
+        };
+    };
+    context.globalAlpha = 1;
+};
+
+function drawLockFlashes(now) {
+    for (const l of fx.lockFlashes) {
+        const remaining = 1 - (now - l.start) / l.duration;
+        context.globalAlpha = remaining * 0.7;
+        context.fillStyle = "white";
+        for (const cell of l.cells) {
+            context.fillRect(cell.x * CELL_WIDTH + 1, CELL_HEIGHT * (PLAYFIELD_HEIGHT - cell.y - 1) + 1, CELL_WIDTH - 2, CELL_HEIGHT - 2);
+        };
+    };
+    context.globalAlpha = 1;
+};
+
+function drawParticles(now) {
+    for (const p of fx.particles) {
+        const progress = (now - p.start) / p.life;
+        context.globalAlpha = 1 - progress;
+        context.fillStyle = p.color;
+        const size = p.size * (1 - progress * 0.5);
+        context.fillRect(p.x - size / 2, p.y - size / 2, size, size);
+    };
+    context.globalAlpha = 1;
+};
+
+function drawPopups(now) {
+    context.textAlign = "center";
+    for (const p of fx.popups) {
+        if (now < p.start) {
+            continue;
+        };
+        const progress = (now - p.start) / p.duration;
+        const y = p.y - 44 * progress;
+        context.globalAlpha = progress < 0.7 ? 1 : 1 - (progress - 0.7) / 0.3;
+        context.font = "bold " + p.size + "px PressStart";
+        context.lineWidth = 6;
+        context.strokeStyle = "white";
+        context.strokeText(p.text, p.x, y);
+        context.fillStyle = p.color;
+        context.fillText(p.text, p.x, y);
+    };
+    context.globalAlpha = 1;
+};
+
+function drawFlashes(now) {
+    for (const f of fx.flashes) {
+        const remaining = 1 - (now - f.start) / f.duration;
+        context.globalAlpha = f.alpha * remaining;
+        context.fillStyle = f.color;
+        context.fillRect(0, 0, canvas.width, canvas.height);
+    };
+    context.globalAlpha = 1;
+};
+
+/**
  * MAIN GAMEPLAY CODE
  */
 
@@ -357,9 +702,11 @@ async function initialize() {
     drawLoadingScreen();
     drawStoredHighscore();
 
-    await loadResources();
+    requestAnimationFrame(renderLoop);
 
-    drawMenu();
+    await loadResources();
+    gameVars.loading = false;
+
     addEventListeners();
 
     setInterval(tick, 1000 / TPS);
@@ -393,11 +740,13 @@ function drawLoadingScreen() {
     context.fillText("Loading...", canvas.width / 2, canvas.height / 2);
 };
 
-function drawMenu() {
-    context.clearRect(0, 0, canvas.width, canvas.height);
+function drawMenuText(now) {
     context.textAlign = "center";
+    context.globalAlpha = 0.75 + 0.25 * Math.sin(now / 300);
     context.font = "bold 18px PressStart";
+    context.fillStyle = "black";
     context.fillText("Click here to start.", canvas.width / 2, canvas.height / 2);
+    context.globalAlpha = 1;
 };
 
 function addEventListeners() {
@@ -414,6 +763,7 @@ function startGame() {
     gameVars.difficulty = 1;
     gameVars.score = 0;
     gameVars.clearedLines = 0;
+    gameVars.combo = 0;
     gameVars.tetrominoBag = [];
 
     playerVars.controlledTetrominoShape = null;
@@ -425,27 +775,14 @@ function startGame() {
     playerVars.controlledTetrominoLowestLine = null;
     playerVars.heldTetromino = null;
     playerVars.hasHeldTetromino = false;
-    playerVars.keys = {
-        z: {
-            isDown: false,
-            heldTicks: 0,
-        },
-        x: {
-            isDown: false,
-            heldTicks: 0,
-        },
-        left: {
-            isDown: false,
-            heldTicks: 0,
-        },
-        right: {
-            isDown: false,
-            heldTicks: 0,
-        },
+    for (const key in playerVars.keyStates) {
+        playerVars.keyStates[key].pressed = false;
+        playerVars.keyStates[key].heldTicks = 0;
     };
+    resetFx();
 
     initializePlayfield();
-    drawPlayField();
+    drawPlayField(performance.now());
     dealTetrominos();
     createControlledTetromino();
     playTheme();
@@ -463,39 +800,91 @@ function pauseGame() {
         AUDIO.theme.pause();
     };
     playSound(AUDIO.pause);
-    drawPauseText();
 };
 
 function tick() {
     if (gameVars.active && !gameVars.paused) {
+        if (performance.now() < fx.freezeUntil) {
+            return; // Impact freeze: stall the game logic for a few ticks when a piece locks
+        };
         gameVars.globalTick += 1;
         handleKeyStates();
         tetrominoGravity();
-        drawPlayField();
     };
+};
+
+// Render loop: presentation (effects, animations) is drawn every animation frame,
+// independent of the game logic tick.
+let lastRenderTime = performance.now();
+function renderLoop(now) {
+    const dt = Math.min(50, now - lastRenderTime);
+    lastRenderTime = now;
+    updateFx(now, dt);
+    drawPlayField(now);
+    requestAnimationFrame(renderLoop);
 };
 
 function initializePlayfield() {
     playfield = Array(PLAYFIELD_WIDTH).fill().map(() => Array(PLAYFIELD_HEIGHT + PLAYFIELD_HEIGHT_BUFFER).fill(null));
 };
 
-function drawPlayField() {
+function drawPlayField(now) {
     context.clearRect(0, 0, canvas.width, canvas.height);
-    drawCells();
-    drawGhost();
-    drawControlledTetromino();
+
+    if (gameVars.loading) {
+        drawLoadingScreen();
+        return;
+    };
+
+    const inMenu = !gameVars.active && !gameVars.gameOver;
+
+    // Everything below the flashes shakes together
+    const [shakeX, shakeY] = getShakeOffset(now);
+    context.save();
+    context.translate(shakeX, shakeY);
+
+    drawGrid();
+    if (inMenu) {
+        drawRain();
+    };
+    drawCells(now);
+    drawClearingRows(now);
+    drawTrail(now);
+    drawGhost(now);
+    drawControlledTetromino(now);
+    drawLockFlashes(now);
+    drawParticles(now);
+    drawPopups(now);
+
+    context.restore();
+
+    drawFlashes(now);
+
+    if (inMenu) {
+        drawMenuText(now);
+    };
+
     drawNextTetromino();
     drawHeldTetromino();
     drawStats();
     drawGameoverText();
+    if (gameVars.paused && gameVars.active) {
+        drawPauseText();
+    };
 };
 
-function drawCells() {
+function drawCells(now) {
+    const clearingRows = new Set();
+    for (const clear of fx.clears) {
+        for (const row of clear.rows) {
+            clearingRows.add(row);
+        };
+    };
     for (let x = 0; x < playfield.length; x++) {
         const column = playfield[x];
         for (let y = 0; y < column.length; y++) {
             const cell = column[y];
-            if (cell) {
+            if (cell && !clearingRows.has(y)) {
                 drawCell(x, y, cell);
             };
         };
@@ -505,26 +894,35 @@ function drawCells() {
 function drawCell(x, y, color) {
     const px = CELL_WIDTH * x;
     const py = CELL_HEIGHT * (PLAYFIELD_HEIGHT - y - 1);
-    const w = CELL_WIDTH;
-    const h = CELL_HEIGHT;
     const gap = 1;
-
-    context.fillStyle = TETROMINO_COLORS[color] || "black";
-    context.fillRect(px + gap, py + gap, w - gap * 2, h - gap * 2);
-
-    // Black border
-    context.strokeStyle = "black";
-    context.lineWidth = 2;
-    context.strokeRect(px + gap + 1, py + gap + 1, w - gap * 2 - 2, h - gap * 2 - 2);
+    drawCellPx(context, px + gap, py + gap, CELL_WIDTH - gap * 2, CELL_HEIGHT - gap * 2, color);
 };
 
-function drawControlledTetromino() {
+function drawControlledTetromino(now) {
     if (playerVars.controlledTetrominoShape) {
         const tetromino = TETROMINOS[playerVars.controlledTetrominoShape][playerVars.controlledTetrominoRotation];
+        // Spawn pop: a new piece scales in over the first 120 ms
+        const age = now - (playerVars.spawnTime || 0);
+        let scale = 1;
+        if (age < 120) {
+            scale = 0.8 + 0.2 * (age / 120);
+        };
+        const pieceCX = (playerVars.controlledTetrominoPositionX + tetromino[0].length / 2) * CELL_WIDTH;
+        const pieceCY = CELL_HEIGHT * (PLAYFIELD_HEIGHT - (playerVars.controlledTetrominoPositionY + (tetromino.length - 1) / 2) - 1) + CELL_HEIGHT / 2;
         for (let row = 0; row < tetromino.length; row++) {
             for (let column = 0; column < tetromino[row].length; column++) {
                 if (tetromino[row][column]) {
-                    drawCell(playerVars.controlledTetrominoPositionX + column, playerVars.controlledTetrominoPositionY + row, playerVars.controlledTetrominoShape);
+                    const gridX = playerVars.controlledTetrominoPositionX + column;
+                    const gridY = playerVars.controlledTetrominoPositionY + row;
+                    if (scale === 1) {
+                        drawCell(gridX, gridY, playerVars.controlledTetrominoShape);
+                    } else {
+                        const cellCX = CELL_WIDTH * gridX + CELL_WIDTH / 2;
+                        const cellCY = CELL_HEIGHT * (PLAYFIELD_HEIGHT - gridY - 1) + CELL_HEIGHT / 2;
+                        const sx = pieceCX + (cellCX - pieceCX) * scale;
+                        const sy = pieceCY + (cellCY - pieceCY) * scale;
+                        drawCellPx(context, sx - (CELL_WIDTH * scale) / 2, sy - (CELL_HEIGHT * scale) / 2, CELL_WIDTH * scale, CELL_HEIGHT * scale, playerVars.controlledTetrominoShape);
+                    };
                 };
             };
         };
@@ -533,6 +931,8 @@ function drawControlledTetromino() {
 
 function drawGameoverText() {
     if (gameVars.gameOver) {
+        context.fillStyle = "rgba(0, 0, 0, 0.25)";
+        context.fillRect(0, 0, canvas.width, canvas.height);
         const borderSize = 4;
         context.fillStyle = "black";
         context.fillRect(12 - borderSize, canvas.height / 2 - 64 - borderSize, canvas.width - 24 + (borderSize * 2), 128 + (borderSize * 2));
@@ -570,22 +970,22 @@ function playTheme() {
 /**
  * Draws a ghost tetromino by determining where the controlled tetromino will land if left uncontrolled, and drawing a transparent tetromino at the determined position.
  */
-function drawGhost() {
+function drawGhost(now) {
     if (playerVars.controlledTetrominoShape) {
         const tetromino = TETROMINOS[playerVars.controlledTetrominoShape][playerVars.controlledTetrominoRotation];
         let offsetY = 0;
         while (tryMovement(0, offsetY - 1)) {
             offsetY -= 1;
         };
+        context.globalAlpha = 0.22 + 0.1 * Math.sin(now / 180); // Gentle pulse
         for (let row = 0; row < tetromino.length; row++) {
             for (let column = 0; column < tetromino[row].length; column++) {
                 if (tetromino[row][column]) {
-                    context.globalAlpha = 0.3;
                     drawCell(playerVars.controlledTetrominoPositionX + column, playerVars.controlledTetrominoPositionY + row + offsetY, playerVars.controlledTetrominoShape);
-                    context.globalAlpha = 1;
                 };
             };
         };
+        context.globalAlpha = 1;
     };
 };
 
@@ -602,14 +1002,8 @@ function drawNextTetromino() {
                 if (tetromino[row][column]) {
                     const px = CELL_WIDTH * column + offsetX;
                     const py = CELL_HEIGHT * (4 - row - 1) + offsetY;
-                    const w = CELL_WIDTH;
-                    const h = CELL_HEIGHT;
                     const gap = 1;
-                    nextContext.fillStyle = TETROMINO_COLORS[nextTetromino] || "black";
-                    nextContext.fillRect(px + gap, py + gap, w - gap * 2, h - gap * 2);
-                    nextContext.strokeStyle = "black";
-                    nextContext.lineWidth = 2;
-                    nextContext.strokeRect(px + gap + 1, py + gap + 1, w - gap * 2 - 2, h - gap * 2 - 2);
+                    drawCellPx(nextContext, px + gap, py + gap, CELL_WIDTH - gap * 2, CELL_HEIGHT - gap * 2, nextTetromino);
                 };
             };
         };
@@ -629,14 +1023,8 @@ function drawHeldTetromino() {
                 if (tetromino[row][column]) {
                     const px = CELL_WIDTH * column + offsetX;
                     const py = CELL_HEIGHT * (4 - row - 1) + offsetY;
-                    const w = CELL_WIDTH;
-                    const h = CELL_HEIGHT;
                     const gap = 1;
-                    holdContext.fillStyle = TETROMINO_COLORS[heldTetromino] || "black";
-                    holdContext.fillRect(px + gap, py + gap, w - gap * 2, h - gap * 2);
-                    holdContext.strokeStyle = "black";
-                    holdContext.lineWidth = 2;
-                    holdContext.strokeRect(px + gap + 1, py + gap + 1, w - gap * 2 - 2, h - gap * 2 - 2);
+                    drawCellPx(holdContext, px + gap, py + gap, CELL_WIDTH - gap * 2, CELL_HEIGHT - gap * 2, heldTetromino);
                 };
             };
         };
@@ -683,6 +1071,7 @@ function createControlledTetromino(override) {
     playerVars.controlledTetrominoLockDelay = TPS / 1.5;
     playerVars.controlledTetrominoLockDelayExtensions = 0;
     playerVars.controlledTetrominoLowestLine = playerVars.controlledTetrominoPositionY;
+    playerVars.spawnTime = performance.now();
     if (playerVars.controlledTetrominoShape === "i") {
         playerVars.controlledTetrominoPositionY -= 1;
     };
@@ -769,7 +1158,9 @@ function tetrominoGravity() {
 function gameOver() {
     gameVars.active = false;
     gameVars.gameOver = true;
-    drawPlayField();
+    addShake(8, 400);
+    addFlash("red", 0.3, 350);
+    drawPlayField(performance.now());
     setTimeout(() => {
         playSound(AUDIO.gameover);
     }, 300);
@@ -782,18 +1173,51 @@ function gameOver() {
 
 // Locks the controlled tetromino in place by adding it to the playfield.
 // Immediately after adding the tetromino, score any filled lines and draw a new tetromino for the player.
-function lockControlledPiece() {
-    const tetromino = TETROMINOS[playerVars.controlledTetrominoShape][playerVars.controlledTetrominoRotation];
+// (When lines are cleared, the next tetromino is spawned once the clear animation finishes.)
+function lockControlledPiece(hardDropped) {
+    const shape = playerVars.controlledTetrominoShape;
+    const rotation = playerVars.controlledTetrominoRotation;
+    const tetromino = TETROMINOS[shape][rotation];
+
+    const lockedCells = [];
+    const pieceCellSet = new Set();
     for (let row = 0; row < tetromino.length; row++) {
         for (let column = 0; column < tetromino[row].length; column++) {
             if (tetromino[row][column]) {
                 const absoluteX = playerVars.controlledTetrominoPositionX + column;
                 const absoluteY = playerVars.controlledTetrominoPositionY + row;
-                playfield[absoluteX][absoluteY] = playerVars.controlledTetrominoShape;
+                lockedCells.push({ x: absoluteX, y: absoluteY });
+                pieceCellSet.add(absoluteX + "," + absoluteY);
             };
         };
     };
-    scoreLines();
+    for (const cell of lockedCells) {
+        playfield[cell.x][cell.y] = shape;
+    };
+    // Cells with no piece cell and no locked cell directly below them (the "bottom" of the placed piece)
+    const bottomCells = lockedCells.filter(cell => {
+        if (cell.y === 0) {
+            return true;
+        };
+        if (pieceCellSet.has(cell.x + "," + (cell.y - 1))) {
+            return false;
+        };
+        return !playfield[cell.x][cell.y - 1];
+    });
+
+    // Juice: impact freeze, lock flash, landing dust, and (for hard drops) a screen shake
+    fx.freezeUntil = performance.now() + (hardDropped ? 33 : 16);
+    addLockFlash(lockedCells);
+    for (const cell of bottomCells) {
+        const px = cell.x * CELL_WIDTH + CELL_WIDTH / 2;
+        const py = CELL_HEIGHT * (PLAYFIELD_HEIGHT - cell.y - 1) + CELL_HEIGHT;
+        spawnBurst(px, py, "rgba(0, 0, 0, 0.3)", hardDropped ? 3 : 1, hardDropped ? 1.8 : 0.9, 300, 0.05);
+    };
+    if (hardDropped) {
+        addShake(4, 150);
+    };
+
+    const clearedRows = scoreLines();
     playSound(AUDIO.land);
     playerVars.hasHeldTetromino = false;
     playerVars.controlledTetrominoShape = null;
@@ -803,7 +1227,10 @@ function lockControlledPiece() {
     playerVars.controlledTetrominoLockDelay = null;
     playerVars.controlledTetrominoLockDelayExtensions = null;
     playerVars.controlledTetrominoLowestLine = null;
-    setTimeout(createControlledTetromino, 200);
+    if (clearedRows.length === 0) {
+        gameVars.combo = 0;
+        setTimeout(createControlledTetromino, 200);
+    };
 };
 
 function holdTetromino() {
@@ -916,40 +1343,51 @@ function hardDrop() {
     if (!playerVars.controlledTetrominoShape) {
         return;
     };
+    const startX = playerVars.controlledTetrominoPositionX;
+    const startY = playerVars.controlledTetrominoPositionY;
     let linesDropped = 0;
     while (tryMovement(0, -1)) {
         playerVars.controlledTetrominoPositionY -= 1;
         linesDropped++;
     };
-    lockControlledPiece();
+    if (linesDropped > 0) {
+        addTrail(playerVars.controlledTetrominoRotation, startX, startY, playerVars.controlledTetrominoPositionY, playerVars.controlledTetrominoShape);
+    };
+    lockControlledPiece(true);
     gameVars.score += 2 * linesDropped;
 };
 
 // Check the playfield for filled lines.
-// If a filled line is found, delete the line and shift all lines above it 1 line towards the ground.
+// Filled lines are not removed immediately: they play a clear animation (flash, then shrink away)
+// before being removed and the rows above them collapse (see finalizeLineClear).
 // If a line clear threshold has been met, increase the level.
+// Returns the array of cleared rows (empty if none).
 function scoreLines() {
-    let clearedLines = 0;
+    const fullRows = [];
     for (let row = 0; row < (PLAYFIELD_HEIGHT + PLAYFIELD_HEIGHT_BUFFER); row++) {
-        let rowIsFilled = playfield.every(column => {
-            return column[row];
-        });
-        while (rowIsFilled) {
-            clearedLines++;
-            for (let column = 0; column < playfield.length; column++) {
-                playfield[column] = playfield[column].slice(0, row).concat(playfield[column].slice(row + 1, playfield[column].length), [null]);  
-            };
-            rowIsFilled = playfield.every(column => {
-                return column[row];
-            });
+        if (playfield.every(column => column[row])) {
+            fullRows.push(row);
         };
     };
-    if (clearedLines > 0) {
-        if (clearedLines >= 4) { // If 4 lines are scored at once (tetris), play a special sound.
-            playSound(AUDIO.tetris);
-        } else {
-            playSound(AUDIO.line);
-        };
+    if (fullRows.length === 0) {
+        return [];
+    };
+
+    // Remember the colors of the cleared cells now, before the rows are removed
+    const rowColors = {};
+    for (const row of fullRows) {
+        rowColors[row] = playfield.map(column => column[row]);
+    };
+
+    const clearedLines = fullRows.length;
+    if (clearedLines >= 4) { // If 4 lines are scored at once (tetris), play a special sound.
+        playSound(AUDIO.tetris);
+        addShake(9, 300);
+        addFlash("white", 0.25, 300);
+    } else {
+        playSound(AUDIO.line);
+        addShake(3 + clearedLines, 200);
+        addFlash("white", 0.12, 200);
     };
     if (clearedLines === 1) {
         gameVars.score += 100 * gameVars.difficulty;
@@ -964,10 +1402,30 @@ function scoreLines() {
         gameVars.score += 800 * gameVars.difficulty;
     };
     gameVars.clearedLines += clearedLines;
+
+    // Floating score popup at the top-most cleared line
+    const topRow = Math.max(...fullRows);
+    const py = CELL_HEIGHT * (PLAYFIELD_HEIGHT - topRow - 1) + 8;
+    const clearNames = ["", "SINGLE", "DOUBLE", "TRIPLE", "TETRIS!"];
+    const clearPoints = [0, 100, 300, 500, 800];
+    addPopup(clearNames[clearedLines], canvas.width / 2, py, clearedLines >= 4 ? 24 : 16, clearedLines >= 4 ? "red" : "black");
+    addPopup("+" + clearPoints[clearedLines] * gameVars.difficulty, canvas.width / 2, py - 32, 12, "black", 900, 60);
+
+    // Combo feedback: consecutive pieces that clear lines
+    gameVars.combo += 1;
+    if (gameVars.combo >= 2) {
+        addPopup("COMBO x" + gameVars.combo, canvas.width / 2, py - 64, 12, "purple", 900, 120);
+    };
+
     if (REQUIRED_LINES_PER_LEVEL[gameVars.difficulty + 1] && gameVars.clearedLines >= REQUIRED_LINES_PER_LEVEL[gameVars.difficulty + 1]) {
         gameVars.difficulty++;
         playSound(AUDIO.level);
+        addFlash("white", 0.15, 250);
+        addPopup("LEVEL " + gameVars.difficulty, canvas.width / 2, canvas.height / 2, 20, "black", 1400, 200);
     };
+
+    addClear(fullRows, rowColors);
+    return fullRows;
 };
 
 // Deal the randomized bag of 7 tetrominos by placing each of the 7 tetrominos in a "bag" and shuffling the bag.
@@ -1083,7 +1541,6 @@ function handleKeyDown(event) {
             break;
         };
     };
-    drawPlayField();
 };
 
 function handleKeyUp(event) {
